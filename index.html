@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DART AR — Game Collection</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Space+Mono&display=swap');
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: #0a0a0f;
+    color: #e0e0e0;
+    font-family: 'Space Mono', monospace;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem 1rem;
+  }
+
+  h1 {
+    font-family: 'Orbitron', sans-serif;
+    font-size: clamp(1.8rem, 6vw, 3rem);
+    font-weight: 900;
+    color: #00ffcc;
+    text-shadow: 0 0 20px #00ffcc88, 0 0 60px #00ffcc33;
+    text-align: center;
+    letter-spacing: 0.1em;
+    margin-bottom: 0.4rem;
+  }
+
+  .subtitle {
+    font-size: 0.85rem;
+    color: #556;
+    text-align: center;
+    margin-bottom: 3rem;
+    letter-spacing: 0.05em;
+  }
+
+  .cards {
+    display: flex;
+    flex-direction: column;
+    gap: 1.2rem;
+    width: 100%;
+    max-width: 480px;
+  }
+
+  .card {
+    display: block;
+    background: #111120;
+    border: 1px solid #223;
+    border-radius: 12px;
+    padding: 1.4rem 1.6rem;
+    text-decoration: none;
+    color: inherit;
+    transition: border-color 0.2s, box-shadow 0.2s, transform 0.15s;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .card::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, transparent 60%, var(--accent, #00ffcc)11);
+    pointer-events: none;
+  }
+
+  .card:hover, .card:active {
+    border-color: var(--accent, #00ffcc);
+    box-shadow: 0 0 20px var(--accent, #00ffcc)44;
+    transform: translateY(-2px);
+  }
+
+  .card-header {
+    display: flex;
+    align-items: center;
+    gap: 0.8rem;
+    margin-bottom: 0.6rem;
+  }
+
+  .card-icon {
+    font-size: 1.6rem;
+    line-height: 1;
+  }
+
+  .card-title {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--accent, #00ffcc);
+    text-shadow: 0 0 10px var(--accent, #00ffcc)88;
+    letter-spacing: 0.05em;
+  }
+
+  .card-desc {
+    font-size: 0.78rem;
+    color: #889;
+    line-height: 1.6;
+  }
+
+  .card-modes {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    margin-top: 0.8rem;
+  }
+
+  .badge {
+    background: #1a1a2e;
+    border: 1px solid #334;
+    border-radius: 4px;
+    padding: 0.15rem 0.5rem;
+    font-size: 0.7rem;
+    color: #aab;
+    letter-spacing: 0.03em;
+  }
+
+  .card:nth-child(1) { --accent: #00ffcc; }
+  .card:nth-child(2) { --accent: #ffaa00; }
+  .card:nth-child(3) { --accent: #ff4488; }
+
+  footer {
+    margin-top: 3rem;
+    font-size: 0.7rem;
+    color: #334;
+    text-align: center;
+  }
+</style>
+</head>
+<body>
+
+<h1>🎯 DART AR</h1>
+<p class="subtitle">Projector Dartboard Game Collection</p>
+
+<div class="cards">
+
+  <a class="card" href="dart-ar.html">
+    <div class="card-header">
+      <span class="card-icon">🎯</span>
+      <span class="card-title">DART AR</span>
+    </div>
+    <p class="card-desc">Multi-mode classic darts with up to 6 players. Supports X01 countdown, Cricket, and Killer modes with checkout hints.</p>
+    <div class="card-modes">
+      <span class="badge">X01</span>
+      <span class="badge">Cricket</span>
+      <span class="badge">Killer</span>
+      <span class="badge">1–6 players</span>
+    </div>
+  </a>
+
+  <a class="card" href="dart-ar-koth.html">
+    <div class="card-header">
+      <span class="card-icon">👑</span>
+      <span class="card-title">KING OF THE HILL</span>
+    </div>
+    <p class="card-desc">Territory control — claim and steal board segments across multiple rounds. Most territories wins.</p>
+    <div class="card-modes">
+      <span class="badge">Territory</span>
+      <span class="badge">3–10 rounds</span>
+      <span class="badge">2–6 players</span>
+    </div>
+  </a>
+
+  <a class="card" href="dart-ar-thief.html">
+    <div class="card-header">
+      <span class="card-icon">🦹</span>
+      <span class="card-title">THIEF</span>
+    </div>
+    <p class="card-desc">Race to 301 or 501 and steal opponents' points. Hit their segments for double damage. First to the exact target wins.</p>
+    <div class="card-modes">
+      <span class="badge">Race</span>
+      <span class="badge">301 / 501</span>
+      <span class="badge">2–6 players</span>
+    </div>
+  </a>
+
+</div>
+
+<footer>Hugo Richard · github.com/HugoRICHAR/Darts</footer>
+
+</body>
+</html>
