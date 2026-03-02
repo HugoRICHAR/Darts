@@ -1,0 +1,3623 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DART AR</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Space+Mono:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg: #070710;
+  --surface: #0d0d1a;
+  --card: #111122;
+  --border: #1a1a2e;
+  --text: #dde0f5;
+  --muted: #565678;
+  --p1: #ff5533;
+  --p2: #00ccff;
+  --gold: #ffc840;
+  --gold-glow: rgba(255,200,64,0.25);
+  --double: #ff3366;
+  --triple: #00ee88;
+  --bull: #ff9500;
+}
+
+html, body {
+  height: 100%;
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Space Mono', monospace;
+  overflow: hidden;
+}
+
+/* ─── CONTROL LAYOUT ─── */
+#control-layout {
+  display: grid;
+  grid-template-columns: 1fr 320px;
+  grid-template-rows: 58px 1fr 64px;
+  height: 100vh;
+}
+
+/* Header */
+#header {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 24px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+}
+
+#header h1 {
+  font-family: 'Orbitron', sans-serif;
+  font-weight: 900;
+  font-size: 1.35rem;
+  letter-spacing: 6px;
+  background: linear-gradient(110deg, var(--gold) 0%, #ff7040 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.header-sub {
+  font-size: 0.6rem;
+  letter-spacing: 3px;
+  color: var(--muted);
+  text-transform: uppercase;
+  margin-top: 2px;
+}
+
+/* Board area */
+#board-area {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: var(--bg);
+  position: relative;
+  overflow: hidden;
+}
+
+#board-area::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at center, rgba(255,200,64,0.03) 0%, transparent 70%);
+  pointer-events: none;
+}
+
+#next-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0,0,0,0.7);
+  backdrop-filter: blur(6px);
+  z-index: 10;
+}
+
+.btn-next-big {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 1.8rem;
+  font-weight: 900;
+  letter-spacing: 6px;
+  padding: 24px 48px;
+  border: 3px solid #00ee88;
+  border-radius: 16px;
+  background: linear-gradient(135deg, rgba(0,238,136,0.15), rgba(0,238,136,0.05));
+  color: #00ee88;
+  cursor: pointer;
+  text-transform: uppercase;
+  box-shadow: 0 0 40px rgba(0,238,136,0.4), inset 0 0 20px rgba(0,238,136,0.1);
+  transition: all 0.2s;
+  animation: pulse-big 1.5s ease-in-out infinite;
+}
+
+.btn-next-big:hover {
+  background: linear-gradient(135deg, rgba(0,238,136,0.25), rgba(0,238,136,0.15));
+  box-shadow: 0 0 60px rgba(0,238,136,0.6), inset 0 0 30px rgba(0,238,136,0.2);
+  transform: scale(1.05);
+}
+
+.btn-next-big:active {
+  transform: scale(0.98);
+}
+
+@keyframes pulse-big {
+  0%, 100% { box-shadow: 0 0 40px rgba(0,238,136,0.4), inset 0 0 20px rgba(0,238,136,0.1); }
+  50% { box-shadow: 0 0 60px rgba(0,238,136,0.7), inset 0 0 30px rgba(0,238,136,0.2); }
+}
+
+#control-canvas {
+  cursor: crosshair;
+  position: relative;
+  z-index: 1;
+  filter: drop-shadow(0 0 30px rgba(255,200,64,0.08));
+  max-width: 100%;
+  max-height: 100%;
+}
+
+/* Sidebar */
+#sidebar {
+  background: var(--surface);
+  border-left: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  padding: 18px;
+  gap: 14px;
+  overflow-y: auto;
+}
+
+.section-label {
+  font-size: 0.58rem;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  color: var(--muted);
+  font-family: 'Orbitron', sans-serif;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+}
+
+/* Player cards */
+.player-card {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 14px 14px 12px;
+  background: var(--card);
+  position: relative;
+  overflow: hidden;
+  transition: border-color 0.3s, box-shadow 0.3s;
+}
+
+.player-card::before {
+  content: '';
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  width: 3px;
+  border-radius: 8px 0 0 8px;
+}
+
+.player-card.p1::before { background: var(--p1); }
+.player-card.p2::before { background: var(--p2); }
+
+.player-card.active {
+  border-color: rgba(255,200,64,0.4);
+  box-shadow: 0 0 18px rgba(255,200,64,0.07);
+}
+
+.active-badge {
+  display: none;
+  position: absolute;
+  top: 8px; right: 8px;
+  font-size: 0.5rem;
+  letter-spacing: 2px;
+  color: var(--gold);
+  font-family: 'Orbitron', sans-serif;
+}
+
+.player-card.active .active-badge { display: block; }
+
+.player-name-label {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 0.65rem;
+  letter-spacing: 2px;
+  color: var(--muted);
+  margin-bottom: 2px;
+}
+
+.player-score-display {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 2.6rem;
+  font-weight: 900;
+  line-height: 1;
+  letter-spacing: -2px;
+  transition: color 0.3s;
+}
+
+/* Cricket Scoreboard */
+.cricket-scoreboard-card {
+  background: rgba(10,10,20,0.6);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 16px;
+}
+
+.cricket-title {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 0.9rem;
+  font-weight: 900;
+  letter-spacing: 3px;
+  color: var(--gold);
+  text-align: center;
+  margin-bottom: 12px;
+}
+
+.cricket-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: 'Orbitron', sans-serif;
+}
+
+.cricket-table th {
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 1px;
+  padding: 8px 4px;
+  border-bottom: 2px solid var(--border);
+  text-align: center;
+}
+
+.cricket-num-col {
+  font-weight: 900;
+  font-size: 0.85rem;
+  width: 60px;
+  text-align: center;
+  color: var(--gold);
+}
+
+.cricket-player-col {
+  font-size: 0.7rem;
+  text-align: center;
+}
+
+.cricket-number-row td {
+  padding: 6px 4px;
+  text-align: center;
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+}
+
+.cricket-mark-cell {
+  font-size: 1.2rem;
+  font-weight: 900;
+  transition: all 0.2s;
+}
+
+.cricket-mark-cell.open {
+  background: rgba(255,200,64,0.08);
+  box-shadow: inset 0 0 8px rgba(255,200,64,0.15);
+}
+
+.cricket-mark-cell.closed {
+  background: rgba(0,238,136,0.12);
+  opacity: 0.6;
+  box-shadow: inset 0 0 8px rgba(0,238,136,0.2);
+}
+
+.cricket-mark-cell.flash {
+  animation: mark-flash 0.6s ease-out;
+}
+
+@keyframes mark-flash {
+  0%, 100% { 
+    background: rgba(255,200,64,0.08);
+    transform: scale(1);
+  }
+  50% { 
+    background: rgba(255,200,64,0.4);
+    transform: scale(1.15);
+    box-shadow: 0 0 20px rgba(255,200,64,0.6);
+  }
+}
+
+.cricket-points-row {
+  font-weight: 900;
+  border-top: 2px solid var(--border);
+}
+
+.cricket-points-row td {
+  padding: 10px 4px;
+  font-size: 1.1rem;
+}
+
+.cricket-points-cell {
+  color: var(--gold);
+  text-align: center;
+}
+
+.cricket-turn-info {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.turn-players {
+  display: flex;
+  gap: 12px;
+  width: 100%;
+}
+
+.turn-player-block {
+  flex: 1;
+  background: rgba(10,10,20,0.4);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px;
+  min-width: 120px;
+}
+
+.turn-player-block.active {
+  border-color: var(--gold);
+  box-shadow: 0 0 12px rgba(255,200,64,0.2);
+}
+
+.turn-player-name {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 0.8rem;
+  font-weight: 700;
+  margin-bottom: 8px;
+  text-align: center;
+}
+
+/* Killer Scoreboard */
+.killer-scoreboard-card {
+  background: rgba(10,10,20,0.6);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 16px;
+}
+
+.killer-title {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 0.9rem;
+  font-weight: 900;
+  letter-spacing: 3px;
+  color: var(--gold);
+  text-align: center;
+  margin-bottom: 12px;
+}
+
+.killer-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: 'Orbitron', sans-serif;
+}
+
+.killer-table th {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 1px;
+  padding: 8px 4px;
+  border-bottom: 2px solid var(--border);
+  text-align: center;
+  color: var(--gold);
+}
+
+.killer-player-row td {
+  padding: 10px 8px;
+  text-align: center;
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+}
+
+.killer-name-cell {
+  font-weight: 700;
+  font-size: 0.85rem;
+  text-align: left;
+}
+
+.killer-num-cell {
+  font-size: 1.8rem;
+  font-weight: 900;
+  text-shadow: 0 0 10px currentColor;
+}
+
+.killer-status-cell {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: rgba(255,255,255,0.7);
+}
+
+.killer-lives-cell {
+  font-size: 1.2rem;
+}
+
+.killer-turn-info {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.player-card.p1 .player-score-display { color: var(--p1); text-shadow: 0 0 20px rgba(255,85,51,0.3); }
+.player-card.p2 .player-score-display { color: var(--p2); text-shadow: 0 0 20px rgba(0,204,255,0.3); }
+
+.dart-track {
+  display: flex;
+  gap: 5px;
+  margin-top: 8px;
+  align-items: center;
+}
+
+.dart-pip {
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  border: 1px solid var(--muted);
+  transition: all 0.2s;
+  flex-shrink: 0;
+}
+.dart-pip.used { background: var(--gold); border-color: var(--gold); box-shadow: 0 0 6px var(--gold); }
+
+.turn-throws {
+  display: flex;
+  gap: 5px;
+  margin-top: 8px;
+  flex-wrap: wrap;
+  min-height: 22px;
+}
+
+.throw-chip {
+  font-size: 0.62rem;
+  padding: 2px 7px;
+  border-radius: 4px;
+  background: var(--border);
+  color: var(--text);
+  white-space: nowrap;
+}
+.throw-chip.dbl { background: rgba(255,51,102,0.18); color: var(--double); }
+.throw-chip.trp { background: rgba(0,238,136,0.12); color: var(--triple); }
+.throw-chip.bul { background: rgba(255,149,0,0.2); color: var(--bull); }
+.throw-chip.bst { background: rgba(255,40,40,0.2); color: #ff4444; }
+
+/* Buttons */
+.btn {
+  font-family: 'Space Mono', monospace;
+  font-size: 0.7rem;
+  letter-spacing: 1px;
+  padding: 9px 14px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--card);
+  color: var(--text);
+  cursor: pointer;
+  transition: all 0.2s;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.btn:hover { border-color: var(--muted); background: var(--surface); }
+.btn:active { transform: scale(0.97); }
+
+.btn-undo { border-color: rgba(255,200,64,0.3); color: var(--gold); }
+.btn-undo:hover { background: rgba(255,200,64,0.06); border-color: var(--gold); }
+
+.btn-new { border-color: rgba(255,51,102,0.3); color: var(--double); }
+.btn-new:hover { background: rgba(255,51,102,0.06); border-color: var(--double); }
+
+.btn-proj {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 0.58rem;
+  letter-spacing: 3px;
+  padding: 10px 16px;
+  border: 1px solid rgba(120,120,255,0.35);
+  background: rgba(40,40,80,0.5);
+  color: #9898ff;
+}
+.btn-proj:hover { border-color: #9898ff; background: rgba(80,80,160,0.2); box-shadow: 0 0 16px rgba(120,120,255,0.15); }
+
+.btn-miss { border-color: rgba(180,180,180,0.3); color: #aaa; }
+.btn-miss:hover { background: rgba(180,180,180,0.06); border-color: #aaa; }
+
+.btn-row { display: flex; gap: 8px; }
+
+/* Checkout hint */
+.checkout-box {
+  background: rgba(255,200,64,0.04);
+  border: 1px solid rgba(255,200,64,0.12);
+  border-radius: 6px;
+  padding: 10px 12px;
+  min-height: 44px;
+}
+.checkout-score {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 0.85rem;
+  color: var(--gold);
+}
+.checkout-path {
+  font-size: 0.65rem;
+  color: var(--muted);
+  margin-top: 3px;
+  letter-spacing: 1px;
+}
+
+/* ─── CALIBRATION MODE ─── */
+.btn-calib-mode {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 0.58rem;
+  letter-spacing: 3px;
+  padding: 10px 16px;
+  border: 1px solid rgba(120,120,255,0.35);
+  background: rgba(40,40,80,0.5);
+  color: #9898ff;
+  border-radius: 6px;
+  cursor: pointer;
+  text-transform: uppercase;
+  transition: all 0.2s;
+  width: 100%;
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+}
+.btn-calib-mode:hover { border-color: #9898ff; background: rgba(80,80,160,0.2); }
+.btn-calib-mode.active {
+  background: rgba(80,80,200,0.35);
+  border-color: #9898ff;
+  box-shadow: 0 0 18px rgba(120,120,255,0.25);
+  color: #fff;
+}
+.btn-calib-mode .dot {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: #9898ff; opacity: 0.4;
+  transition: all 0.2s;
+}
+.btn-calib-mode.active .dot { opacity: 1; background: #00ffcc; box-shadow: 0 0 8px #00ffcc; }
+
+#calib-controls {
+  display: none;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  background: rgba(20,20,50,0.6);
+  border: 1px solid rgba(120,120,255,0.2);
+  border-radius: 8px;
+}
+#calib-controls.visible { display: flex; }
+
+.calib-hint {
+  font-size: 0.58rem;
+  color: rgba(120,120,255,0.7);
+  letter-spacing: 1px;
+  text-align: center;
+  line-height: 1.6;
+}
+
+/* D-pad */
+.dpad {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: repeat(3, 1fr);
+  gap: 4px;
+  width: 108px;
+  margin: 0 auto;
+}
+.dpad-btn {
+  width: 32px; height: 32px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  font-size: 0.9rem;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: all 0.12s;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.dpad-btn:hover { background: rgba(120,120,255,0.12); border-color: #9898ff; }
+.dpad-btn:active { transform: scale(0.88); background: rgba(120,120,255,0.25); }
+.dpad-btn.center {
+  background: rgba(120,120,255,0.08);
+  border-color: rgba(120,120,255,0.3);
+  font-size: 0.5rem;
+  letter-spacing: 1px;
+  color: rgba(120,120,255,0.6);
+}
+.dpad-btn.empty { background: transparent; border: none; pointer-events: none; }
+
+/* Scale row */
+.scale-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.scale-btn {
+  width: 36px; height: 32px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  font-size: 1.1rem;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: all 0.12s;
+  flex-shrink: 0;
+}
+.scale-btn:hover { background: rgba(120,120,255,0.12); border-color: #9898ff; }
+.scale-btn:active { transform: scale(0.88); }
+.scale-display {
+  flex: 1;
+  text-align: center;
+  font-family: 'Orbitron', sans-serif;
+  font-size: 0.75rem;
+  color: #9898ff;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 7px 4px;
+}
+
+/* Step toggle */
+.step-row {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  justify-content: center;
+}
+.step-label {
+  font-size: 0.55rem;
+  letter-spacing: 2px;
+  color: var(--muted);
+  text-transform: uppercase;
+}
+.step-opt {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 0.55rem;
+  letter-spacing: 1px;
+  padding: 4px 10px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.step-opt.sel { background: rgba(120,120,255,0.15); border-color: #9898ff; color: #9898ff; }
+
+.btn-calib-reset {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 0.55rem;
+  letter-spacing: 2px;
+  padding: 7px;
+  border: 1px solid rgba(120,120,255,0.25);
+  background: transparent;
+  color: rgba(150,150,255,0.5);
+  border-radius: 5px;
+  cursor: pointer;
+  text-transform: uppercase;
+  transition: all 0.2s;
+  width: 100%;
+}
+.btn-calib-reset:hover { border-color: #9898ff; color: #9898ff; background: rgba(80,80,160,0.15); }
+
+/* Footer */
+#footer {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 24px;
+  border-top: 1px solid var(--border);
+  background: var(--surface);
+  gap: 20px;
+}
+.footer-hint {
+  font-size: 0.58rem;
+  letter-spacing: 2px;
+  color: var(--muted);
+  text-transform: uppercase;
+}
+.hint-legend { display: flex; gap: 14px; align-items: center; }
+.hint-badge {
+  font-size: 0.58rem;
+  padding: 2px 6px;
+  border-radius: 3px;
+  letter-spacing: 1px;
+}
+.hint-badge.s { background: rgba(255,255,255,0.06); color: var(--muted); }
+.hint-badge.d { background: rgba(255,51,102,0.15); color: var(--double); }
+.hint-badge.t { background: rgba(0,238,136,0.1); color: var(--triple); }
+.hint-badge.b { background: rgba(255,149,0,0.15); color: var(--bull); }
+
+/* Toast */
+#toast {
+  position: fixed;
+  bottom: 84px;
+  left: 50%;
+  transform: translateX(-50%) translateY(10px);
+  background: var(--surface);
+  border: 1px solid var(--gold);
+  color: var(--gold);
+  font-family: 'Orbitron', sans-serif;
+  font-size: 0.75rem;
+  letter-spacing: 3px;
+  padding: 10px 22px;
+  border-radius: 6px;
+  opacity: 0;
+  transition: all 0.25s;
+  pointer-events: none;
+  z-index: 999;
+  white-space: nowrap;
+}
+#toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+/* ─── PROJECTION LAYOUT ─── */
+#projection-layout {
+  width: 100vw;
+  height: 100vh;
+  background: #000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  overflow: hidden;
+}
+
+#projection-canvas { display: block; }
+
+#proj-scores {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  transform: translateY(-50%);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 18px;
+  padding: 20px 18px;
+  pointer-events: none;
+}
+
+.proj-player-block { text-align: left; }
+
+.proj-player-block.winner {
+  animation: winner-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes winner-pulse {
+  0%, 100% {
+    transform: scale(1.05);
+    opacity: 1;
+    filter: drop-shadow(0 0 20px currentColor) brightness(1.2);
+  }
+  50% {
+    transform: scale(1.15);
+    opacity: 1;
+    filter: drop-shadow(0 0 40px currentColor) brightness(1.5);
+  }
+}
+
+.proj-player-name {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 1.1rem;
+  letter-spacing: 3px;
+  opacity: 0.7;
+  text-transform: uppercase;
+}
+
+.proj-score-num {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 2.8rem;
+  font-weight: 900;
+  line-height: 1;
+  text-shadow: 0 0 20px currentColor;
+}
+
+.proj-hand {
+  display: flex;
+  gap: 6px;
+  margin-top: 4px;
+  flex-wrap: wrap;
+  min-height: 1.2rem;
+}
+
+.proj-checkout {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 0.7rem;
+  letter-spacing: 1px;
+  margin-top: 5px;
+  opacity: 0.75;
+  white-space: nowrap;
+}
+
+/* Projection Cricket Scoreboard */
+.proj-cricket-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: 'Orbitron', sans-serif;
+  margin-top: 20px;
+  background: rgba(0,0,0,0.9);
+  border: 3px solid #000;
+}
+
+.proj-cricket-table th {
+  font-size: 1.1rem;
+  font-weight: 900;
+  letter-spacing: 2px;
+  padding: 14px 8px;
+  border-bottom: 3px solid #000;
+  text-align: center;
+  background: rgba(0,0,0,0.95);
+}
+
+.proj-cricket-table td {
+  padding: 12px 8px;
+  text-align: center;
+  border: 1px solid rgba(50,50,50,0.8);
+  font-weight: 900;
+  background: rgba(0,0,0,0.9);
+}
+
+.proj-cricket-num-col {
+  font-weight: 900;
+  font-size: 1.5rem;
+  color: #ff6600;
+  min-width: 80px;
+  background: rgba(0,0,0,0.95);
+  text-shadow: 0 0 8px rgba(255,102,0,0.6);
+}
+
+.proj-cricket-mark-cell {
+  font-size: 2rem;
+  font-weight: 900;
+  transition: all 0.3s;
+  background: rgba(0,0,0,0.9);
+  text-shadow: 0 0 6px currentColor;
+}
+
+.proj-cricket-mark-cell.open {
+  /* No special background - just black */
+}
+
+.proj-cricket-mark-cell.closed {
+  opacity: 0.5;
+}
+
+.proj-cricket-pts-cell {
+  font-size: 1.8rem;
+  font-weight: 900;
+  padding: 18px 8px;
+  background: rgba(0,0,0,0.95);
+  text-shadow: 0 0 8px currentColor;
+}
+
+.proj-cricket-table tfoot {
+  border-top: 4px solid #000;
+  background: rgba(0,0,0,0.95);
+}
+
+/* Projection Killer Scoreboard */
+.proj-killer-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: 'Orbitron', sans-serif;
+  margin-top: 20px;
+  background: rgba(0,0,0,0.9);
+  border: 3px solid #000;
+}
+
+.proj-killer-table th {
+  font-size: 0.9rem;
+  font-weight: 900;
+  letter-spacing: 2px;
+  padding: 12px 6px;
+  border-bottom: 3px solid #000;
+  text-align: center;
+  background: rgba(0,0,0,0.95);
+  color: #ff6600;
+}
+
+.proj-killer-table td {
+  padding: 14px 8px;
+  text-align: center;
+  border: 1px solid rgba(50,50,50,0.8);
+  font-weight: 900;
+  background: rgba(0,0,0,0.9);
+}
+
+.proj-killer-name {
+  font-size: 1.1rem;
+  text-align: left;
+  text-shadow: 0 0 6px currentColor;
+}
+
+.proj-killer-num {
+  font-size: 2.2rem;
+  font-weight: 900;
+  text-shadow: 0 0 10px currentColor;
+}
+
+.proj-killer-status {
+  font-size: 1.2rem;
+  color: rgba(255,255,255,0.8);
+}
+
+.proj-killer-lives {
+  font-size: 1.4rem;
+  text-shadow: 0 0 6px currentColor;
+}
+
+.proj-dart-chip {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 4px;
+  background: rgba(255,255,255,0.07);
+  letter-spacing: 1px;
+}
+
+#proj-title {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 0.55rem;
+  letter-spacing: 5px;
+  color: rgba(255,255,255,0.15);
+  align-self: flex-start;
+  padding-top: 8px;
+}
+
+/* ─── SETUP MODAL ─── */
+#setup-modal {
+  position: fixed; inset: 0;
+  background: rgba(0,0,8,0.92);
+  backdrop-filter: blur(8px);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 999;
+}
+#setup-modal.hidden { display: none !important; }
+
+.modal-box {
+  background: var(--surface);
+  border: 1px solid rgba(120,120,255,0.3);
+  border-radius: 14px;
+  padding: 28px 26px 22px;
+  width: 420px; max-width: 95vw;
+  box-shadow: 0 0 60px rgba(0,0,0,0.8);
+}
+.modal-title {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 1.1rem; font-weight: 900; letter-spacing: 6px;
+  text-align: center; margin-bottom: 24px;
+  background: linear-gradient(110deg, var(--gold) 0%, #ff7040 100%);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+}
+.setup-section { margin-bottom: 18px; }
+.setup-section-label {
+  font-size: 0.56rem; letter-spacing: 3px; text-transform: uppercase;
+  color: var(--muted); font-family: 'Orbitron', sans-serif; margin-bottom: 10px;
+}
+.score-toggle { display: flex; gap: 8px; }
+.score-opt {
+  flex: 1; padding: 10px;
+  border: 1px solid var(--border); border-radius: 7px;
+  background: var(--card); color: var(--muted); cursor: pointer;
+  font-family: 'Orbitron', sans-serif; font-size: 1rem; font-weight: 700;
+  text-align: center; transition: all 0.2s; letter-spacing: 2px;
+}
+.score-opt.sel {
+  border-color: var(--gold); color: var(--gold);
+  background: rgba(255,200,64,0.06); box-shadow: 0 0 12px rgba(255,200,64,0.12);
+}
+.player-count-row { display: flex; align-items: center; gap: 14px; }
+.count-btn {
+  width: 36px; height: 36px; background: var(--card);
+  border: 1px solid var(--border); border-radius: 8px;
+  color: var(--text); font-size: 1.2rem; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: all 0.2s; flex-shrink: 0;
+}
+.count-btn:hover { border-color: var(--gold); background: rgba(255,200,64,0.06); }
+.count-btn:active { transform: scale(0.92); }
+.count-display {
+  font-family: 'Orbitron', sans-serif; font-size: 1.8rem; font-weight: 900;
+  color: var(--gold); width: 40px; text-align: center;
+}
+.count-label { font-size: 0.65rem; color: var(--muted); letter-spacing: 1px; }
+#modal-player-names { display: flex; flex-direction: column; gap: 8px; }
+.modal-name-row { display: flex; align-items: center; gap: 10px; }
+.modal-name-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.modal-name-input {
+  flex: 1; background: var(--card); border: 1px solid var(--border);
+  border-radius: 6px; padding: 8px 12px; color: var(--text);
+  font-family: 'Space Mono', monospace; font-size: 0.75rem;
+  outline: none; transition: border-color 0.2s;
+}
+.modal-name-input:focus { border-color: rgba(120,120,255,0.5); }
+
+.modal-num-input {
+  width: 60px;
+  background: rgba(255,200,64,0.1);
+  border: 1px solid rgba(255,200,64,0.3);
+  border-radius: 6px;
+  color: var(--gold);
+  font-family: 'Orbitron', sans-serif;
+  font-size: 0.9rem;
+  font-weight: 700;
+  padding: 8px;
+  outline: none;
+  text-align: center;
+  transition: all 0.2s;
+}
+.modal-num-input:focus {
+  border-color: var(--gold);
+  background: rgba(255,200,64,0.15);
+}
+
+.btn-start {
+  width: 100%; padding: 13px; margin-top: 6px;
+  font-family: 'Orbitron', sans-serif; font-size: 0.75rem;
+  font-weight: 700; letter-spacing: 4px;
+  background: linear-gradient(110deg, rgba(255,200,64,0.15), rgba(255,112,64,0.1));
+  border: 1px solid rgba(255,200,64,0.4); border-radius: 8px;
+  color: var(--gold); cursor: pointer; text-transform: uppercase; transition: all 0.2s;
+}
+.btn-start:hover {
+  background: linear-gradient(110deg, rgba(255,200,64,0.25), rgba(255,112,64,0.18));
+  box-shadow: 0 0 20px rgba(255,200,64,0.15);
+}
+
+/* Dynamic player card accent colors */
+.player-card.pc0::before { background: #ff5533; }
+.player-card.pc1::before { background: #00ccff; }
+.player-card.pc2::before { background: #00ee88; }
+.player-card.pc3::before { background: #ffc840; }
+.player-card.pc4::before { background: #cc44ff; }
+.player-card.pc5::before { background: #ff9500; }
+.player-card.pc0 .player-score-display { color: #ff5533; text-shadow: 0 0 20px rgba(255,85,51,0.3); }
+.player-card.pc1 .player-score-display { color: #00ccff; text-shadow: 0 0 20px rgba(0,204,255,0.3); }
+.player-card.pc2 .player-score-display { color: #00ee88; text-shadow: 0 0 20px rgba(0,238,136,0.3); }
+.player-card.pc3 .player-score-display { color: #ffc840; text-shadow: 0 0 20px rgba(255,200,64,0.3); }
+.player-card.pc4 .player-score-display { color: #cc44ff; text-shadow: 0 0 20px rgba(204,68,255,0.3); }
+.player-card.pc5 .player-score-display { color: #ff9500; text-shadow: 0 0 20px rgba(255,149,0,0.3); }
+/* Compact cards for 4+ players */
+.player-card.compact { padding: 8px 12px; }
+.player-card.compact .player-score-display { font-size: 1.8rem; }
+
+.hidden { display: none !important; }
+</style>
+</head>
+<body>
+
+<div id="toast"></div>
+
+<!-- SETUP MODAL -->
+<div id="setup-modal" class="hidden">
+  <div class="modal-box">
+    <div class="modal-title">DART AR</div>
+    
+    <div class="setup-section">
+      <div class="setup-section-label">Game Mode</div>
+      <div class="score-toggle">
+        <button class="score-opt sel" id="game-x01" onclick="selectGameMode('x01')">X01</button>
+        <button class="score-opt" id="game-cricket" onclick="selectGameMode('cricket')">Cricket</button>
+        <button class="score-opt" id="game-killer" onclick="selectGameMode('killer')">Killer</button>
+      </div>
+    </div>
+
+    <div class="setup-section" id="x01-options">
+      <div class="setup-section-label">Starting Score</div>
+      <div class="score-toggle">
+        <button class="score-opt" id="sopt-301" onclick="selectScore(301)">301</button>
+        <button class="score-opt sel" id="sopt-501" onclick="selectScore(501)">501</button>
+        <button class="score-opt" id="sopt-701" onclick="selectScore(701)">701</button>
+      </div>
+    </div>
+    
+    <div class="setup-section" id="x01-finish">
+      <div class="setup-section-label">Finish Rule</div>
+      <div class="score-toggle">
+        <button class="score-opt sel" id="sopt-dbl" onclick="selectFinish('double')">Double Out</button>
+        <button class="score-opt" id="sopt-str" onclick="selectFinish('straight')">Straight Out</button>
+      </div>
+    </div>
+    
+    <div class="setup-section hidden" id="killer-options">
+      <div class="setup-section-label">Lives per Player</div>
+      <div class="score-toggle">
+        <button class="score-opt" id="lives-3" onclick="selectLives(3)">3 Lives</button>
+        <button class="score-opt sel" id="lives-5" onclick="selectLives(5)">5 Lives</button>
+        <button class="score-opt" id="lives-7" onclick="selectLives(7)">7 Lives</button>
+      </div>
+    </div>
+    
+    <div class="setup-section">
+      <div class="setup-section-label">Number of Players</div>
+      <div class="player-count-row">
+        <button class="count-btn" onclick="changeCount(-1)">−</button>
+        <div class="count-display" id="count-display">2</div>
+        <button class="count-btn" onclick="changeCount(1)">+</button>
+        <span class="count-label">players (1 – 6)</span>
+      </div>
+    </div>
+    <div class="setup-section">
+      <div class="setup-section-label">Player Names</div>
+      <div id="modal-player-names"></div>
+    </div>
+    <button class="btn-start" onclick="startGame()">▶ &nbsp;START GAME</button>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════
+     CONTROL WINDOW
+════════════════════════════════════════ -->
+<div id="control-layout" class="hidden">
+
+  <header id="header">
+    <div>
+      <h1>DART AR</h1>
+      <div class="header-sub">Projection Mapping Controller · 501</div>
+    </div>
+    <button class="btn btn-proj" onclick="openProjection()">⊞ &nbsp;OPEN PROJECTION WINDOW</button>
+  </header>
+
+  <main id="board-area">
+    <canvas id="control-canvas"></canvas>
+    <div id="next-overlay" class="hidden">
+      <button class="btn-next-big" onclick="nextPlayer()">▶▶ NEXT PLAYER</button>
+    </div>
+  </main>
+
+  <aside id="sidebar">
+    <div class="section-label">Players</div>
+    <div id="players-list"></div>
+
+    <div class="section-label">Actions</div>
+    <div class="btn-row">
+      <button class="btn btn-undo" onclick="undoThrow()">↩ &nbsp;UNDO</button>
+      <button class="btn btn-new" onclick="openSetup()">⊞ &nbsp;NEW GAME</button>
+    </div>
+
+    <div class="section-label">Checkout</div>
+    <div class="checkout-box">
+      <div class="checkout-score" id="checkout-score"></div>
+      <div class="checkout-path" id="checkout-path"></div>
+    </div>
+
+    <!-- CALIBRATION -->
+    <div style="margin-top: auto; display: flex; flex-direction: column; gap: 8px;">
+      <button class="btn-calib-mode" id="calib-mode-btn" onclick="toggleCalibMode()">
+        <span class="dot"></span>
+        Calibrate Projection
+      </button>
+
+      <div id="calib-controls">
+        <div class="calib-hint">Look at the wall.<br>Steer the <strong style="color:#00ffcc">cyan ring</strong> onto the board.</div>
+
+        <!-- D-pad -->
+        <div class="dpad">
+          <div class="dpad-btn empty"></div>
+          <button class="dpad-btn" onmousedown="startMove(0,-1)" onmouseup="stopMove()" onmouseleave="stopMove()" ontouchstart="startMove(0,-1)" ontouchend="stopMove()">▲</button>
+          <div class="dpad-btn empty"></div>
+          <button class="dpad-btn" onmousedown="startMove(-1,0)" onmouseup="stopMove()" onmouseleave="stopMove()" ontouchstart="startMove(-1,0)" ontouchend="stopMove()">◀</button>
+          <div class="dpad-btn center">MOVE</div>
+          <button class="dpad-btn" onmousedown="startMove(1,0)" onmouseup="stopMove()" onmouseleave="stopMove()" ontouchstart="startMove(1,0)" ontouchend="stopMove()">▶</button>
+          <div class="dpad-btn empty"></div>
+          <button class="dpad-btn" onmousedown="startMove(0,1)" onmouseup="stopMove()" onmouseleave="stopMove()" ontouchstart="startMove(0,1)" ontouchend="stopMove()">▼</button>
+          <div class="dpad-btn empty"></div>
+        </div>
+
+        <!-- Scale -->
+        <div class="scale-row">
+          <button class="scale-btn" onmousedown="startScale(-1)" onmouseup="stopMove()" onmouseleave="stopMove()">−</button>
+          <div class="scale-display" id="calib-scale-disp">100%</div>
+          <button class="scale-btn" onmousedown="startScale(1)" onmouseup="stopMove()" onmouseleave="stopMove()">+</button>
+        </div>
+
+        <!-- Step size -->
+        <div class="step-row">
+          <span class="step-label">Step</span>
+          <button class="step-opt sel" id="step-coarse" onclick="setStep('coarse')">Coarse</button>
+          <button class="step-opt" id="step-fine" onclick="setStep('fine')">Fine</button>
+        </div>
+
+        <button class="btn-calib-reset" onclick="resetCalib()">↺ &nbsp;Reset all</button>
+      </div>
+    </div>
+
+  </aside>
+
+  <footer id="footer">
+    <span class="footer-hint">Click the board to register a throw</span>
+    <button class="btn btn-miss" onclick="missThrow()">✕ &nbsp;MISS</button>
+    <div class="hint-legend">
+      <span class="hint-badge s">Single</span>
+      <span class="hint-badge d">Double</span>
+      <span class="hint-badge t">Triple</span>
+      <span class="hint-badge b">Bull</span>
+    </div>
+  </footer>
+
+</div>
+
+<!-- ══════════════════════════════════════
+     PROJECTION WINDOW
+════════════════════════════════════════ -->
+<div id="projection-layout" class="hidden">
+  <canvas id="projection-canvas"></canvas>
+
+  <div id="proj-scores"></div>
+</div>
+
+<!-- ══════════════════════════════════════
+     SCRIPT
+════════════════════════════════════════ -->
+<script>
+'use strict';
+
+// ────────────────────────────────────────
+// CONSTANTS
+// ────────────────────────────────────────
+const SEGMENTS = [20,1,18,4,13,6,10,15,2,17,3,19,7,16,8,11,14,9,12,5];
+
+// Normalised radii — 1.0 = outer edge of double ring
+const R = {
+  bull:        0.038,
+  outerBull:   0.095,
+  tripleInner: 0.578,
+  tripleOuter: 0.633,
+  doubleInner: 0.942,
+  doubleOuter: 1.000,
+};
+
+const BOARD_CLR = {
+  segDark:  '#191008',
+  segLight: '#ede0c0',
+  redRing:  '#b52020',
+  greenRing:'#1f9450',
+  bull:     '#b52020',
+  outerBull:'#1f9450',
+  numbers:  '#ddd8c8',
+};
+
+const HIT_CLR = {
+  single:   '#ffc840',
+  double:   '#ff3366',
+  triple:   '#00ee88',
+  bull:     '#ff9500',
+  outerBull:'#ff9500',
+  bust:     '#ff2222',
+};
+
+// Checkout hints database
+const CHECKOUTS = {
+  170:'T20 T20 Bull', 167:'T20 T19 Bull', 164:'T20 T18 Bull',
+  161:'T20 T17 Bull', 160:'T20 T20 D20', 158:'T20 T20 D19',
+  157:'T20 T19 D20', 156:'T20 T20 D18', 155:'T20 T19 D19',
+  154:'T20 T18 D20', 153:'T20 T19 D18', 152:'T20 T20 D16',
+  151:'T20 T17 D20', 150:'T20 T18 D18', 149:'T20 T19 D16',
+  148:'T20 T16 D20', 147:'T20 T17 D18', 146:'T20 T18 D16',
+  145:'T20 T19 D14', 144:'T20 T20 D12', 143:'T20 T17 D16',
+  142:'T20 T14 D20', 141:'T20 T19 D12', 140:'T20 T20 D10',
+  100:'T20 D20', 99:'T19 T10 D16', 98:'T20 D19', 97:'T19 D20',
+  96:'T20 D18', 95:'T19 D19', 94:'T18 D20', 93:'T19 D18',
+  92:'T20 D16', 91:'T17 D20', 90:'T18 D18', 89:'T19 D16',
+  88:'T20 D14', 87:'T17 D18', 86:'T18 D16', 85:'T19 D14',
+  84:'T20 D12', 83:'T17 D16', 82:'T14 D20', 81:'T19 D12',
+  80:'T20 D10', 79:'T19 D11', 78:'T18 D12', 77:'T19 D10',
+  76:'T20 D8',  75:'T17 D12', 74:'T14 D16', 73:'T19 D8',
+  72:'T16 D12', 71:'T13 D16', 70:'T18 D8',  69:'T19 D6',
+  68:'T20 D4',  67:'T17 D8',  66:'T10 D18', 65:'T19 D4',
+  64:'T16 D8',  63:'T13 D12', 62:'T10 D16', 61:'T15 D8',
+  60:'20 D20',  59:'19 D20',  58:'18 D20',  57:'17 D20',
+  56:'16 D20',  55:'15 D20',  54:'14 D20',  53:'13 D20',
+  52:'12 D20',  51:'11 D20',  50:'Bull',
+  40:'D20', 38:'D19', 36:'D18', 34:'D17', 32:'D16',
+  30:'D15', 28:'D14', 26:'D13', 24:'D12', 22:'D11',
+  20:'D10', 18:'D9',  16:'D8',  14:'D7',  12:'D6',
+  10:'D5',  8:'D4',   6:'D3',   4:'D2',   2:'D1',
+};
+
+
+// ────────────────────────────────────────
+// PLAYER COLORS & SETUP STATE
+// ────────────────────────────────────────
+const PLAYER_COLORS = ['#ff5533','#00ccff','#00ee88','#ffc840','#cc44ff','#ff9500'];
+
+let setupScore = 501;
+let setupCount = 2;
+let setupFinish = 'double'; // 'double' | 'straight'
+let setupGameMode = 'x01'; // 'x01' | 'cricket' | 'killer'
+let setupKillerLives = 5; // lives per player in Killer
+const setupNames = ['Player 1','Player 2','Player 3','Player 4','Player 5','Player 6'];
+
+function selectGameMode(mode) {
+  setupGameMode = mode;
+  document.getElementById('game-x01').classList.toggle('sel', mode === 'x01');
+  document.getElementById('game-cricket').classList.toggle('sel', mode === 'cricket');
+  document.getElementById('game-killer').classList.toggle('sel', mode === 'killer');
+  document.getElementById('x01-options').style.display = mode === 'x01' ? 'block' : 'none';
+  document.getElementById('x01-finish').style.display = mode === 'x01' ? 'block' : 'none';
+  document.getElementById('killer-options').classList.toggle('hidden', mode !== 'killer');
+  renderModalNames(); // Re-render to show/hide number inputs
+}
+
+function selectLives(n) {
+  setupKillerLives = n;
+  [3, 5, 7].forEach(l => {
+    document.getElementById('lives-' + l).classList.toggle('sel', l === n);
+  });
+}
+
+function selectFinish(f) {
+  setupFinish = f;
+  document.getElementById('sopt-dbl').classList.toggle('sel', f === 'double');
+  document.getElementById('sopt-str').classList.toggle('sel', f === 'straight');
+}
+
+function openSetup() {
+  state.players.forEach((p, i) => { setupNames[i] = p.name; });
+  setupScore = state.startScore || 501;
+  setupCount = state.players.length || 2;
+  setupFinish = state.doubleOut === false ? 'straight' : 'double';
+  setupGameMode = state.gameMode || 'x01';
+  
+  document.getElementById('setup-modal').classList.remove('hidden');
+  selectGameMode(setupGameMode); // This handles show/hide of X01 options
+  updateScoreOpts();
+  selectFinish(setupFinish);
+  document.getElementById('count-display').textContent = setupCount;
+  renderModalNames();
+}
+
+function selectScore(s) {
+  setupScore = s;
+  updateScoreOpts();
+}
+
+function updateScoreOpts() {
+  [301, 501, 701].forEach(s =>
+    document.getElementById('sopt-' + s).classList.toggle('sel', setupScore === s));
+}
+
+function changeCount(d) {
+  for (let i = 0; i < 6; i++) {
+    const inp = document.getElementById('mn-' + i);
+    if (inp) setupNames[i] = inp.value || setupNames[i];
+  }
+  setupCount = Math.max(1, Math.min(6, setupCount + d));
+  document.getElementById('count-display').textContent = setupCount;
+  renderModalNames();
+}
+
+function renderModalNames() {
+  const el = document.getElementById('modal-player-names');
+  el.innerHTML = '';
+  for (let i = 0; i < setupCount; i++) {
+    const row = document.createElement('div');
+    row.className = 'modal-name-row';
+    
+    if (setupGameMode === 'killer') {
+      // Killer mode: name + number input
+      const defaultNum = (i % 20) + 1; // Default: 1,2,3...20,1,2...
+      row.innerHTML = `
+        <div class="modal-name-dot" style="background:${PLAYER_COLORS[i]}"></div>
+        <input class="modal-name-input" id="mn-${i}" value="${setupNames[i]}"
+          placeholder="Player ${i+1}" maxlength="16"
+          oninput="setupNames[${i}]=this.value">
+        <input class="modal-num-input" id="knum-${i}" type="number" value="${defaultNum}" min="1" max="25" placeholder="1-20,25(B)">`;
+    } else {
+      // Other modes: just name
+      row.innerHTML = `
+        <div class="modal-name-dot" style="background:${PLAYER_COLORS[i]}"></div>
+        <input class="modal-name-input" id="mn-${i}" value="${setupNames[i]}"
+          placeholder="Player ${i+1}" maxlength="16"
+          oninput="setupNames[${i}]=this.value">`;
+    }
+    el.appendChild(row);
+  }
+}
+
+function startGame() {
+  for (let i = 0; i < setupCount; i++) {
+    const inp = document.getElementById('mn-' + i);
+    if (inp) setupNames[i] = inp.value.trim() || 'Player ' + (i + 1);
+  }
+  
+  state.gameMode = setupGameMode;
+  state.startScore = setupScore;
+  state.doubleOut = setupFinish === 'double';
+  state.players = Array.from({ length: setupCount }, (_, i) => ({
+    name: setupNames[i], 
+    score: setupGameMode === 'x01' ? setupScore : 0, 
+    color: PLAYER_COLORS[i],
+  }));
+  state.currentPlayer = 0;
+  state.currentTurnThrows = [];
+  state.turnStartScores = [];
+  state.waitingForNext = false;
+  state.history = [];
+  state.gameOver = false;
+
+  // Initialize Cricket state if needed
+  if (setupGameMode === 'cricket') {
+    state.cricket.marks = {};
+    state.cricket.points = {};
+    for (let i = 0; i < setupCount; i++) {
+      state.cricket.marks[i] = {};
+      state.cricket.numbers.forEach(num => { state.cricket.marks[i][num] = 0; });
+      state.cricket.points[i] = 0;
+    }
+  }
+  
+  // Initialize Killer state if needed
+  if (setupGameMode === 'killer') {
+    state.killer.assignedNumbers = {};
+    state.killer.lives = {};
+    state.killer.isKiller = {};
+    state.killer.doublesHit = {};
+    for (let i = 0; i < setupCount; i++) {
+      // Read number from input
+      const numInput = document.getElementById('knum-' + i);
+      let num = numInput ? parseInt(numInput.value) : ((i % 20) + 1);
+      
+      // Validate: must be 1-20 or 25
+      if (num < 1 || (num > 20 && num !== 25)) {
+        num = ((i % 20) + 1);
+      }
+      
+      state.killer.assignedNumbers[i] = num;
+      state.killer.lives[i] = setupKillerLives;
+      state.killer.isKiller[i] = false;
+      state.killer.doublesHit[i] = 0;
+    }
+  }
+
+  document.getElementById('setup-modal').classList.add('hidden');
+  document.getElementById('control-layout').classList.remove('hidden');
+
+  if (state.gameMode === 'cricket') {
+    renderCricketCards();
+  } else if (state.gameMode === 'killer') {
+    renderKillerCards();
+  } else {
+    renderPlayerCards();
+  }
+  updateUI();
+  buildProjScores(state.players, 0, state.gameMode, state.gameMode === 'cricket' ? state.cricket : null, state.gameMode === 'killer' ? state.killer : null);
+  channel.postMessage({
+    type: 'NEW_GAME',
+    gameMode: state.gameMode,
+    players: state.players.map(p => ({ ...p })),
+    currentPlayer: 0,
+    doubleOut: state.doubleOut,
+    cricket: state.gameMode === 'cricket' ? { marks: state.cricket.marks, points: state.cricket.points, numbers: state.cricket.numbers } : null,
+    killer: state.gameMode === 'killer' ? { assignedNumbers: state.killer.assignedNumbers, lives: state.killer.lives, isKiller: state.killer.isKiller, doublesHit: state.killer.doublesHit } : null,
+    checkouts: state.gameMode === 'x01' ? state.players.map(p => state.doubleOut ? (CHECKOUTS[p.score] || null) : (p.score <= 170 && p.score >= 1 ? (CHECKOUTS[p.score] || `${p.score}`) : null)) : null,
+  });
+}
+
+function renderPlayerCards() {
+  const list = document.getElementById('players-list');
+  list.innerHTML = '';
+  const compact = state.players.length > 3;
+  state.players.forEach((p, i) => {
+    const card = document.createElement('div');
+    card.className = `player-card pc${i}${compact ? ' compact' : ''}`;
+    card.id = 'card-' + i;
+    card.innerHTML = `
+      <div class="active-badge">▶ THROWING</div>
+      <div class="player-name-label" id="pname-${i}">${p.name}</div>
+      <div class="player-score-display" id="pscore-${i}">${p.score}</div>
+      <div class="dart-track">
+        <div class="dart-pip" id="pip-${i}-0"></div>
+        <div class="dart-pip" id="pip-${i}-1"></div>
+        <div class="dart-pip" id="pip-${i}-2"></div>
+      </div>
+      <div class="turn-throws" id="pthrows-${i}"></div>`;
+    list.appendChild(card);
+  });
+}
+
+function renderCricketCards() {
+  const list = document.getElementById('players-list');
+  list.innerHTML = '';
+  
+  // Create a shared Cricket scoreboard table
+  const scoreboardCard = document.createElement('div');
+  scoreboardCard.className = 'cricket-scoreboard-card';
+  scoreboardCard.innerHTML = `
+    <div class="cricket-title">CRICKET SCOREBOARD</div>
+    <table class="cricket-table">
+      <thead>
+        <tr>
+          <th class="cricket-num-col">NUM</th>
+          ${state.players.map((p, i) => `<th class="cricket-player-col" style="color: ${p.color}">${p.name}</th>`).join('')}
+        </tr>
+      </thead>
+      <tbody id="cricket-tbody">
+      </tbody>
+      <tfoot>
+        <tr class="cricket-points-row">
+          <td class="cricket-num-col"><strong>PTS</strong></td>
+          ${state.players.map((p, i) => `<td class="cricket-points-cell" id="cricket-total-${i}">0</td>`).join('')}
+        </tr>
+      </tfoot>
+    </table>
+  `;
+  list.appendChild(scoreboardCard);
+  
+  // Build rows for each number
+  const tbody = document.getElementById('cricket-tbody');
+  state.cricket.numbers.forEach(num => {
+    const row = document.createElement('tr');
+    row.className = 'cricket-number-row';
+    row.innerHTML = `
+      <td class="cricket-num-col"><strong>${num === 25 ? 'BULL' : num}</strong></td>
+      ${state.players.map((p, i) => {
+        const marks = state.cricket.marks[i][num] || 0;
+        const symbol = getMarkSymbol(marks);
+        const closed = marks >= 3;
+        return `<td class="cricket-mark-cell ${closed ? 'closed' : 'open'}" id="cricket-mark-${i}-${num}" style="color: ${p.color}">${symbol}</td>`;
+      }).join('')}
+    `;
+    tbody.appendChild(row);
+  });
+  
+  // Add player turn indicators below scoreboard
+  const turnCard = document.createElement('div');
+  turnCard.className = 'cricket-turn-info';
+  turnCard.innerHTML = `
+    <div class="turn-players">
+      ${state.players.map((p, i) => `
+        <div class="turn-player-block" id="turn-card-${i}">
+          <div class="turn-player-name" style="color: ${p.color}">${p.name}</div>
+          <div class="dart-track">
+            <div class="dart-pip" id="pip-${i}-0"></div>
+            <div class="dart-pip" id="pip-${i}-1"></div>
+            <div class="dart-pip" id="pip-${i}-2"></div>
+          </div>
+          <div class="turn-throws" id="pthrows-${i}"></div>
+        </div>
+      `).join('')}
+    </div>
+  `;
+  list.appendChild(turnCard);
+}
+
+function getMarkSymbol(count) {
+  if (count === 0) return '';
+  if (count === 1) return '/';
+  if (count === 2) return 'X';
+  return '⊗';
+}
+
+function renderKillerCards() {
+  const list = document.getElementById('players-list');
+  list.innerHTML = '';
+  
+  // Create Killer scoreboard table
+  const scoreboardCard = document.createElement('div');
+  scoreboardCard.className = 'killer-scoreboard-card';
+  scoreboardCard.innerHTML = `
+    <div class="killer-title">KILLER SCOREBOARD</div>
+    <table class="killer-table">
+      <thead>
+        <tr>
+          <th>PLAYER</th>
+          <th>NUMBER</th>
+          <th>STATUS</th>
+          <th>LIVES</th>
+        </tr>
+      </thead>
+      <tbody id="killer-tbody"></tbody>
+    </table>
+  `;
+  list.appendChild(scoreboardCard);
+  
+  // Build rows for each player
+  const tbody = document.getElementById('killer-tbody');
+  state.players.forEach((p, i) => {
+    const row = document.createElement('tr');
+    row.className = 'killer-player-row';
+    row.id = 'killer-row-' + i;
+    const lives = state.killer.lives[i];
+    const isKiller = state.killer.isKiller[i];
+    const doublesHit = state.killer.doublesHit[i];
+    const number = state.killer.assignedNumbers[i];
+    
+    // Lives display as hearts
+    let livesDisplay = '';
+    for (let l = 0; l < lives; l++) livesDisplay += '❤';
+    
+    // Status display
+    let statusDisplay = isKiller ? '💀 KILLER' : `${doublesHit}/3`;
+    
+    // Number display - show BULL for 25
+    const numDisplay = number === 25 ? 'BULL' : number;
+    
+    row.innerHTML = `
+      <td class="killer-name-cell" style="color: ${p.color}">${p.name}</td>
+      <td class="killer-num-cell" id="killer-num-${i}" style="color: ${p.color}">${numDisplay}</td>
+      <td class="killer-status-cell" id="killer-status-${i}">${statusDisplay}</td>
+      <td class="killer-lives-cell" id="killer-lives-${i}" style="color: ${p.color}">${livesDisplay}</td>
+    `;
+    tbody.appendChild(row);
+  });
+  
+  // Add player turn indicators below scoreboard
+  const turnCard = document.createElement('div');
+  turnCard.className = 'killer-turn-info';
+  turnCard.innerHTML = `
+    <div class="turn-players">
+      ${state.players.map((p, i) => `
+        <div class="turn-player-block" id="turn-card-${i}">
+          <div class="turn-player-name" style="color: ${p.color}">${p.name}</div>
+          <div class="dart-track">
+            <div class="dart-pip" id="pip-${i}-0"></div>
+            <div class="dart-pip" id="pip-${i}-1"></div>
+            <div class="dart-pip" id="pip-${i}-2"></div>
+          </div>
+          <div class="turn-throws" id="pthrows-${i}"></div>
+        </div>
+      `).join('')}
+    </div>
+  `;
+  list.appendChild(turnCard);
+}
+
+// Projection score strip builder (called from both control and projection sides)
+function buildProjScores(players, currentPlayer, gameMode, cricketData, killerData) {
+  if (gameMode === 'cricket' && cricketData) {
+    buildProjCricket(players, currentPlayer, cricketData);
+  } else if (gameMode === 'killer' && killerData) {
+    buildProjKiller(players, currentPlayer, killerData);
+  } else {
+    buildProjX01(players, currentPlayer);
+  }
+}
+
+function buildProjX01(players, currentPlayer) {
+  const strip = document.getElementById('proj-scores');
+  if (!strip) return;
+  strip.innerHTML = '';
+  players.forEach((p, i) => {
+    const block = document.createElement('div');
+    block.className = 'proj-player-block';
+    block.id = 'proj-block-' + i;
+    block.style.color = p.color;
+    block.style.borderLeft = `3px solid ${p.color}`;
+    block.style.paddingLeft = '12px';
+    block.innerHTML = `
+      <div class="proj-player-name" id="proj-pname-${i}">${p.name}</div>
+      <div class="proj-score-num" id="proj-pscore-${i}">${p.score}</div>
+      <div class="proj-checkout" id="proj-checkout-${i}"></div>
+      <div class="proj-hand" id="proj-hand-${i}"></div>`;
+    strip.appendChild(block);
+  });
+  updateActiveProjPlayer(currentPlayer);
+}
+
+function buildProjCricket(players, currentPlayer, cricketData) {
+  const strip = document.getElementById('proj-scores');
+  if (!strip) return;
+  strip.innerHTML = '';
+  
+  // Build Cricket table
+  const table = document.createElement('table');
+  table.className = 'proj-cricket-table';
+  table.innerHTML = `
+    <thead>
+      <tr>
+        <th class="proj-cricket-num-col"></th>
+        ${players.map(p => `<th style="color: ${p.color}">${p.name}</th>`).join('')}
+      </tr>
+    </thead>
+    <tbody id="proj-cricket-tbody"></tbody>
+    <tfoot>
+      <tr>
+        <td class="proj-cricket-num-col"><strong>PTS</strong></td>
+        ${players.map((p, i) => `<td class="proj-cricket-pts-cell" id="proj-cricket-pts-${i}" style="color: ${p.color}">0</td>`).join('')}
+      </tr>
+    </tfoot>
+  `;
+  strip.appendChild(table);
+  
+  // Build rows for each number
+  const tbody = document.getElementById('proj-cricket-tbody');
+  cricketData.numbers.forEach(num => {
+    const row = document.createElement('tr');
+    row.innerHTML = `
+      <td class="proj-cricket-num-col"><strong>${num === 25 ? 'B' : num}</strong></td>
+      ${players.map((p, i) => {
+        const marks = cricketData.marks[i]?.[num] || 0;
+        const symbol = getMarkSymbol(marks);
+        const closed = marks >= 3;
+        return `<td class="proj-cricket-mark-cell ${closed ? 'closed' : 'open'}" id="proj-cricket-${i}-${num}" style="color: ${p.color}">${symbol}</td>`;
+      }).join('')}
+    `;
+    tbody.appendChild(row);
+  });
+  
+  updateActiveProjPlayer(currentPlayer);
+}
+
+function buildProjKiller(players, currentPlayer, killerData) {
+  const strip = document.getElementById('proj-scores');
+  if (!strip) return;
+  strip.innerHTML = '';
+  
+  // Build Killer table
+  const table = document.createElement('table');
+  table.className = 'proj-killer-table';
+  table.innerHTML = `
+    <thead>
+      <tr>
+        <th>PLAYER</th>
+        <th>NUM</th>
+        <th>STATUS</th>
+        <th>LIVES</th>
+      </tr>
+    </thead>
+    <tbody id="proj-killer-tbody"></tbody>
+  `;
+  strip.appendChild(table);
+  
+  // Build rows for each player
+  const tbody = document.getElementById('proj-killer-tbody');
+  players.forEach((p, i) => {
+    const row = document.createElement('tr');
+    const lives = killerData.lives[i] || 0;
+    const isKiller = killerData.isKiller[i];
+    const doublesHit = killerData.doublesHit[i] || 0;
+    const number = killerData.assignedNumbers[i];
+    
+    let livesDisplay = '';
+    for (let l = 0; l < lives; l++) livesDisplay += '❤';
+    
+    let statusDisplay = isKiller ? '💀' : `${doublesHit}/3`;
+    
+    // Number display - show B for bull (25)
+    const numDisplay = number === 25 ? 'B' : number;
+    
+    row.innerHTML = `
+      <td class="proj-killer-name" style="color: ${p.color}">${p.name}</td>
+      <td class="proj-killer-num" id="proj-killer-num-${i}" style="color: ${p.color}">${numDisplay}</td>
+      <td class="proj-killer-status" id="proj-killer-status-${i}">${statusDisplay}</td>
+      <td class="proj-killer-lives" id="proj-killer-lives-${i}" style="color: ${p.color}">${livesDisplay}</td>
+    `;
+    tbody.appendChild(row);
+  });
+  
+  updateActiveProjPlayer(currentPlayer);
+}
+
+function updateActiveProjPlayer(idx) {
+  document.querySelectorAll('.proj-player-block').forEach((b, i) => {
+    b.style.opacity = i === idx ? '1' : '0.35';
+    b.style.transform = i === idx ? 'scale(1.05)' : 'scale(1)';
+    b.style.transition = 'opacity 0.3s, transform 0.3s';
+  });
+}
+
+let projHandPlayer = -1;
+let projHandThrows = [];
+
+function updateProjHand(players, currentPlayer, zone, bust) {
+  // New turn started — clear all hands
+  if (currentPlayer !== projHandPlayer) {
+    projHandPlayer = currentPlayer;
+    projHandThrows = [];
+    // Clear all hand displays
+    document.querySelectorAll('.proj-hand').forEach(h => h.innerHTML = '');
+  }
+
+  if (zone) projHandThrows.push({ zone, bust });
+
+  const el = document.getElementById('proj-hand-' + currentPlayer);
+  if (!el) return;
+  const playerColor = players[currentPlayer]?.color || '#fff';
+
+  el.innerHTML = '';
+  let handTotal = 0;
+  projHandThrows.forEach(({ zone, bust }) => {
+    const chip = document.createElement('span');
+    chip.className = 'proj-dart-chip';
+    if (bust) {
+      chip.textContent = 'BUST';
+      chip.style.color = '#ff4444';
+      chip.style.background = 'rgba(255,40,40,0.15)';
+    } else if (zone.ring === 'miss') {
+      chip.textContent = 'MISS';
+      chip.style.color = '#888';
+      chip.style.background = 'rgba(150,150,150,0.1)';
+    } else {
+      const pre = zone.ring === 'double' ? 'D' : zone.ring === 'triple' ? 'T' : '';
+      const seg = zone.ring === 'bull' ? 'BULL' : zone.ring === 'outerBull' ? '25' : zone.segment;
+      chip.textContent = `${pre}${seg}`;
+      chip.style.color = playerColor;
+      chip.style.background = `${playerColor}18`;
+      chip.style.boxShadow = `0 0 8px ${playerColor}44`;
+      handTotal += zone.score;
+    }
+    el.appendChild(chip);
+  });
+
+  // Show total after all 3 darts
+  if (projHandThrows.length === 3) {
+    const total = document.createElement('span');
+    total.className = 'proj-dart-chip';
+    total.textContent = `= ${handTotal}`;
+    total.style.color = playerColor;
+    total.style.background = `${playerColor}30`;
+    total.style.boxShadow = `0 0 12px ${playerColor}66`;
+    total.style.fontWeight = '900';
+    total.style.marginLeft = '4px';
+    el.appendChild(total);
+  }
+}
+
+function clearProjHand() {
+  projHandPlayer = -1;
+  projHandThrows = [];
+  document.querySelectorAll('.proj-hand').forEach(h => h.innerHTML = '');
+}
+
+function updateProjCheckouts(players, currentPlayer, doubleOut) {
+  players.forEach((p, i) => {
+    const el = document.getElementById('proj-checkout-' + i);
+    if (!el) return;
+    const score = p.score;
+    const hint = CHECKOUTS[score] || null;
+    const reachable = doubleOut ? (score <= 170 && score >= 2 && hint) : (score >= 1 && score <= 170);
+    if (reachable) {
+      const path = hint || `${score}`;
+      el.textContent = '⟶ ' + path;
+      el.style.color = p.color;
+      el.style.display = 'block';
+    } else {
+      el.textContent = '';
+      el.style.display = 'none';
+    }
+  });
+}
+
+// ────────────────────────────────────────
+// GAME STATE
+// ────────────────────────────────────────
+const state = {
+  gameMode: 'x01', // 'x01' | 'cricket'
+  startScore: 501,
+  doubleOut: true,
+  players: [
+    { name: 'Player 1', score: 501, color: '#ff5533' },
+    { name: 'Player 2', score: 501, color: '#00ccff' },
+  ],
+  currentPlayer: 0,
+  currentTurnThrows: [],
+  turnStartScores: [],   // scores at start of current turn — for bust revert
+  waitingForNext: false, // true after 3 darts thrown or bust
+  history: [],
+  gameOver: false,
+  // Cricket-specific state
+  cricket: {
+    numbers: [20, 19, 18, 17, 16, 15, 25], // 25 = Bull
+    marks: {}, // marks[playerIndex][number] = count (0-3)
+    points: {}, // points[playerIndex] = total points
+  },
+  // Killer-specific state
+  killer: {
+    assignedNumbers: {}, // killer.assignedNumbers[playerIndex] = number (15-20)
+    lives: {}, // killer.lives[playerIndex] = lives remaining
+    isKiller: {}, // killer.isKiller[playerIndex] = true/false
+    doublesHit: {}, // killer.doublesHit[playerIndex] = count (need 3 to become killer)
+  }
+};
+
+function saveSnapshot() {
+  // Deep-clone cricket marks (nested object)
+  const cricketSnapshot = {
+    marks: {},
+    points: { ...state.cricket.points },
+  };
+  for (const pi in state.cricket.marks) {
+    cricketSnapshot.marks[pi] = { ...state.cricket.marks[pi] };
+  }
+
+  // Deep-clone killer state
+  const killerSnapshot = {
+    assignedNumbers: { ...state.killer.assignedNumbers },
+    lives: { ...state.killer.lives },
+    isKiller: { ...state.killer.isKiller },
+    doublesHit: { ...state.killer.doublesHit },
+  };
+
+  state.history.push({
+    players: state.players.map(p => ({ ...p })),
+    currentPlayer: state.currentPlayer,
+    currentTurnThrows: [...state.currentTurnThrows],
+    turnStartScores: [...state.turnStartScores],
+    waitingForNext: state.waitingForNext,
+    gameOver: state.gameOver,
+    doubleOut: state.doubleOut,
+    cricket: cricketSnapshot,
+    killer: killerSnapshot,
+  });
+}
+
+function restoreSnapshot(snap) {
+  state.players = snap.players.map(p => ({ ...p }));
+  state.currentPlayer = snap.currentPlayer;
+  state.currentTurnThrows = [...snap.currentTurnThrows];
+  state.turnStartScores = [...(snap.turnStartScores || [])];
+  state.waitingForNext = snap.waitingForNext || false;
+  state.gameOver = snap.gameOver;
+  state.doubleOut = snap.doubleOut;
+
+  // Restore cricket state
+  if (snap.cricket) {
+    state.cricket.points = { ...snap.cricket.points };
+    state.cricket.marks = {};
+    for (const pi in snap.cricket.marks) {
+      state.cricket.marks[pi] = { ...snap.cricket.marks[pi] };
+    }
+  }
+
+  // Restore killer state
+  if (snap.killer) {
+    state.killer.assignedNumbers = { ...snap.killer.assignedNumbers };
+    state.killer.lives = { ...snap.killer.lives };
+    state.killer.isKiller = { ...snap.killer.isKiller };
+    state.killer.doublesHit = { ...snap.killer.doublesHit };
+  }
+}
+
+
+// ────────────────────────────────────────
+// BROADCAST CHANNEL
+// ────────────────────────────────────────
+const channel = new BroadcastChannel('dart-ar-v1');
+
+
+// ────────────────────────────────────────
+// DARTBOARD GEOMETRY
+// ────────────────────────────────────────
+
+/** Convert canvas coords → zone data */
+function hitTest(x, y, cx, cy, boardR) {
+  const dx = x - cx, dy = y - cy;
+  const dist = Math.sqrt(dx * dx + dy * dy);
+  const nr = dist / boardR;  // normalised radius
+
+  if (nr > R.doubleOuter * 1.04) return null;
+
+  let ring;
+  if      (nr <= R.bull)        ring = 'bull';
+  else if (nr <= R.outerBull)   ring = 'outerBull';
+  else if (nr <= R.tripleInner) ring = 'single';
+  else if (nr <= R.tripleOuter) ring = 'triple';
+  else if (nr <= R.doubleInner) ring = 'single';
+  else if (nr <= R.doubleOuter) ring = 'double';
+  else                          ring = null;
+
+  if (!ring) return null;
+
+  if (ring === 'bull') {
+    return { ring, segment: 50, score: 50, x: dx / boardR, y: dy / boardR, nr };
+  }
+  if (ring === 'outerBull') {
+    return { ring, segment: 25, score: 25, x: dx / boardR, y: dy / boardR, nr };
+  }
+
+  // Compute segment
+  let angleDeg = Math.atan2(dy, dx) * 180 / Math.PI; // -180..180
+  angleDeg = ((angleDeg + 90 + 360) % 360);           // 0=top, clockwise
+  const segIdx = Math.floor((angleDeg + 9) / 18) % 20;
+  const segVal = SEGMENTS[segIdx];
+  const mul = ring === 'triple' ? 3 : ring === 'double' ? 2 : 1;
+
+  return { ring, segment: segVal, score: segVal * mul, multiplier: mul, segIdx,
+           x: dx / boardR, y: dy / boardR, nr };
+}
+
+
+// ────────────────────────────────────────
+// DRAWING ENGINE
+// ────────────────────────────────────────
+
+function drawDartboard(ctx, cx, cy, boardR, opts = {}) {
+  const { hover = null, glow = null, dimmed = false, hideNumbers = false, killerHighlightSections = [], killerHighlightColor = '#ffc840' } = opts;
+
+  ctx.save();
+
+  // Board border halo
+  const halo = ctx.createRadialGradient(cx, cy, boardR * 0.9, cx, cy, boardR * 1.18);
+  halo.addColorStop(0, dimmed ? 'transparent' : 'rgba(255,200,100,0.06)');
+  halo.addColorStop(1, 'transparent');
+  ctx.fillStyle = halo;
+  ctx.beginPath();
+  ctx.arc(cx, cy, boardR * 1.18, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Segments
+  SEGMENTS.forEach((val, i) => {
+    const a1 = deg2rad(-99 + i * 18);
+    const a2 = deg2rad(-81 + i * 18);
+    const even = i % 2 === 0;
+
+    const isHoverSeg = hover && hover.segment === val;
+    const isGlowSeg  = glow  && glow.segment  === val;
+    const gc = glow?.playerColor || null;
+
+    // Single inner
+    slice(ctx, cx, cy, boardR * R.outerBull, boardR * R.tripleInner, a1, a2,
+      isHoverSeg && hover.ring === 'single' ? brighten(even ? BOARD_CLR.segDark : BOARD_CLR.segLight, 0.25) :
+      isGlowSeg  && glow.ring  === 'single' ? (gc || HIT_CLR.single) :
+      dimmed ? dim(even ? BOARD_CLR.segDark : BOARD_CLR.segLight) :
+               (even ? BOARD_CLR.segDark : BOARD_CLR.segLight));
+
+    // Triple band
+    const triBase = even ? BOARD_CLR.redRing : BOARD_CLR.greenRing;
+    slice(ctx, cx, cy, boardR * R.tripleInner, boardR * R.tripleOuter, a1, a2,
+      isHoverSeg && hover.ring === 'triple' ? brighten(triBase, 0.3) :
+      isGlowSeg  && glow.ring  === 'triple' ? (gc || HIT_CLR.triple) :
+      dimmed ? dim(triBase) : triBase);
+
+    // Single outer
+    slice(ctx, cx, cy, boardR * R.tripleOuter, boardR * R.doubleInner, a1, a2,
+      isHoverSeg && hover.ring === 'single' ? brighten(even ? BOARD_CLR.segDark : BOARD_CLR.segLight, 0.25) :
+      isGlowSeg  && glow.ring  === 'single' ? (gc || HIT_CLR.single) :
+      dimmed ? dim(even ? BOARD_CLR.segDark : BOARD_CLR.segLight) :
+               (even ? BOARD_CLR.segDark : BOARD_CLR.segLight));
+
+    // Double band
+    const dblBase = even ? BOARD_CLR.redRing : BOARD_CLR.greenRing;
+    slice(ctx, cx, cy, boardR * R.doubleInner, boardR * R.doubleOuter, a1, a2,
+      isHoverSeg && hover.ring === 'double' ? brighten(dblBase, 0.3) :
+      isGlowSeg  && glow.ring  === 'double' ? (gc || HIT_CLR.double) :
+      dimmed ? dim(dblBase) : dblBase);
+  });
+
+  // Outer bull
+  const obHov  = hover && (hover.ring === 'outerBull');
+  const obGlow = glow  && (glow.ring  === 'outerBull');
+  ctx.beginPath();
+  ctx.arc(cx, cy, boardR * R.outerBull, 0, Math.PI * 2);
+  ctx.fillStyle = obGlow ? (glow.playerColor || HIT_CLR.outerBull) : obHov ? '#e03030' : dimmed ? dim(BOARD_CLR.outerBull) : BOARD_CLR.outerBull;
+  ctx.fill();
+
+  // Bull
+  const bHov  = hover && hover.ring === 'bull';
+  const bGlow = glow  && glow.ring  === 'bull';
+  ctx.beginPath();
+  ctx.arc(cx, cy, boardR * R.bull, 0, Math.PI * 2);
+  ctx.fillStyle = bGlow ? (glow.playerColor || HIT_CLR.bull) : bHov ? '#33bb66' : dimmed ? dim(BOARD_CLR.bull) : BOARD_CLR.bull;
+  ctx.fill();
+
+  // Wire lines
+  ctx.strokeStyle = dimmed ? 'rgba(120,100,80,0.2)' : 'rgba(200,180,140,0.55)';
+  ctx.lineWidth = 1;
+
+  SEGMENTS.forEach((_, i) => {
+    const a = deg2rad(-99 + i * 18);
+    ctx.beginPath();
+    ctx.moveTo(cx + boardR * R.outerBull * Math.cos(a), cy + boardR * R.outerBull * Math.sin(a));
+    ctx.lineTo(cx + boardR * Math.cos(a), cy + boardR * Math.sin(a));
+    ctx.stroke();
+  });
+
+  [R.outerBull, R.tripleInner, R.tripleOuter, R.doubleInner, R.doubleOuter].forEach(rr => {
+    ctx.beginPath();
+    ctx.arc(cx, cy, boardR * rr, 0, Math.PI * 2);
+    ctx.stroke();
+  });
+
+  // Numbers
+  if (!hideNumbers) {
+    ctx.fillStyle = dimmed ? 'rgba(200,190,160,0.3)' : BOARD_CLR.numbers;
+    const fSize = Math.max(9, boardR * 0.087);
+    ctx.font = `700 ${fSize}px 'Space Mono', monospace`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    const numR = boardR * 1.078;
+    SEGMENTS.forEach((val, i) => {
+      const a = deg2rad(-90 + i * 18);
+      ctx.fillText(val, cx + numR * Math.cos(a), cy + numR * Math.sin(a));
+    });
+  }
+
+  // Killer section highlighting - draw AFTER everything so it shows on top
+  if (killerHighlightSections.length > 0) {
+    console.log('Drawing killer highlights:', killerHighlightSections, 'color:', killerHighlightColor);
+    
+    killerHighlightSections.forEach(val => {
+      if (val === 25) {
+        // Special handling for Bull - entire bull area glows
+        ctx.save();
+        ctx.globalAlpha = 0.65;
+        ctx.shadowColor = killerHighlightColor;
+        ctx.shadowBlur = 60;
+        
+        // Highlight entire bull area
+        ctx.beginPath();
+        ctx.arc(cx, cy, boardR * R.outerBull, 0, Math.PI * 2);
+        ctx.fillStyle = killerHighlightColor;
+        ctx.fill();
+        
+        ctx.restore();
+      } else {
+        // Regular number segment - entire wedge from CENTER to outer edge
+        const i = SEGMENTS.indexOf(val);
+        if (i === -1) return;
+        
+        const a1 = deg2rad(-99 + i * 18);
+        const a2 = deg2rad(-81 + i * 18);
+        
+        // Draw glowing overlay on ENTIRE section (from center to outer edge)
+        ctx.save();
+        ctx.globalAlpha = 0.65;
+        ctx.shadowColor = killerHighlightColor;
+        ctx.shadowBlur = 60;
+        
+        // Draw the full wedge from center
+        ctx.beginPath();
+        ctx.moveTo(cx, cy);
+        ctx.arc(cx, cy, boardR * R.doubleOuter, a1, a2);
+        ctx.closePath();
+        ctx.fillStyle = killerHighlightColor;
+        ctx.fill();
+        
+        // Add extra bright border around the section edges
+        ctx.globalAlpha = 0.85;
+        ctx.strokeStyle = killerHighlightColor;
+        ctx.lineWidth = 6;
+        ctx.shadowBlur = 40;
+        
+        ctx.beginPath();
+        ctx.moveTo(cx, cy);
+        ctx.lineTo(cx + boardR * R.doubleOuter * Math.cos(a1), cy + boardR * R.doubleOuter * Math.sin(a1));
+        ctx.moveTo(cx, cy);
+        ctx.lineTo(cx + boardR * R.doubleOuter * Math.cos(a2), cy + boardR * R.doubleOuter * Math.sin(a2));
+        ctx.stroke();
+        
+        ctx.restore();
+      }
+    });
+  }
+
+  ctx.restore();
+}
+
+function slice(ctx, cx, cy, r1, r2, a1, a2, color) {
+  ctx.beginPath();
+  ctx.arc(cx, cy, r2, a1, a2);
+  ctx.arc(cx, cy, r1, a2, a1, true);
+  ctx.closePath();
+  ctx.fillStyle = color;
+  ctx.fill();
+}
+
+function deg2rad(d) { return d * Math.PI / 180; }
+
+function dim(hex, f = 0.32) {
+  const r = parseInt(hex.slice(1,3),16), g = parseInt(hex.slice(3,5),16), b = parseInt(hex.slice(5,7),16);
+  return `rgb(${Math.round(r*f)},${Math.round(g*f)},${Math.round(b*f)})`;
+}
+
+function brighten(hex, f = 0.25) {
+  const r = parseInt(hex.slice(1,3),16), g = parseInt(hex.slice(3,5),16), b = parseInt(hex.slice(5,7),16);
+  return `rgb(${Math.min(255,Math.round(r+(255-r)*f))},${Math.min(255,Math.round(g+(255-g)*f))},${Math.min(255,Math.round(b+(255-b)*f))})`;
+}
+
+
+// ════════════════════════════════════════════════════════
+// ██ CONTROL MODE
+// ════════════════════════════════════════════════════════
+function initControl() {
+  document.getElementById('control-layout').classList.remove('hidden');
+
+  const canvas = document.getElementById('control-canvas');
+  const ctx    = canvas.getContext('2d');
+  let boardR, cx, cy;
+  let hoverZone = null;
+
+  function resize() {
+    const area = document.getElementById('board-area');
+    const sz = Math.min(area.clientWidth, area.clientHeight) - 32;
+    canvas.width = canvas.height = sz;
+    cx = cy = sz / 2;
+    boardR = sz / 2 * 0.84;
+    renderControl();
+  }
+
+  function renderControl() {
+    const sz = canvas.width;
+    ctx.clearRect(0, 0, sz, sz);
+
+    // Dark board background disc
+    ctx.beginPath();
+    ctx.arc(cx, cy, boardR * 1.14, 0, Math.PI * 2);
+    ctx.fillStyle = '#0a0a12';
+    ctx.fill();
+
+    drawDartboard(ctx, cx, cy, boardR, { hover: hoverZone });
+  }
+
+  canvas.addEventListener('mousemove', e => {
+    const { px, py } = canvasPoint(e, canvas);
+    hoverZone = hitTest(px, py, cx, cy, boardR);
+    canvas.style.cursor = hoverZone ? 'crosshair' : 'default';
+    renderControl();
+  });
+
+  canvas.addEventListener('mouseleave', () => {
+    hoverZone = null;
+    renderControl();
+  });
+
+  canvas.addEventListener('click', e => {
+    if (state.gameOver) { showToast('NEW GAME TO CONTINUE'); return; }
+    if (state.waitingForNext || state.currentTurnThrows.length >= 3) return;
+    const { px, py } = canvasPoint(e, canvas);
+    const zone = hitTest(px, py, cx, cy, boardR);
+    if (zone) {
+      if (state.gameMode === 'cricket') processCricketThrow(zone);
+      else if (state.gameMode === 'killer') processKillerThrow(zone);
+      else processThrow(zone);
+    }
+  });
+
+  window.addEventListener('resize', resize);
+  resize();
+  updateUI();
+
+  // Respond to projection window requesting state sync
+  channel.onmessage = ({ data: msg }) => {
+    if (msg.type === 'PROJ_READY') {
+      channel.postMessage({
+        type: 'SYNC',
+        gameMode: state.gameMode,
+        players: state.players.map(p => ({ ...p })),
+        currentPlayer: state.currentPlayer,
+        doubleOut: state.doubleOut,
+        cricket: state.gameMode === 'cricket' ? { marks: state.cricket.marks, points: state.cricket.points, numbers: state.cricket.numbers } : null,
+        killer: state.gameMode === 'killer' ? { assignedNumbers: state.killer.assignedNumbers, lives: state.killer.lives, isKiller: state.killer.isKiller, doublesHit: state.killer.doublesHit } : null,
+        checkouts: state.gameMode === 'x01' ? state.players.map(p => state.doubleOut ? (CHECKOUTS[p.score] || null) : (p.score <= 170 && p.score >= 1 ? (CHECKOUTS[p.score] || `${p.score}`) : null)) : null,
+      });
+    }
+  };
+}
+
+function canvasPoint(e, canvas) {
+  const rect  = canvas.getBoundingClientRect();
+  const scale = canvas.width / rect.width;
+  return { px: (e.clientX - rect.left) * scale, py: (e.clientY - rect.top) * scale };
+}
+
+
+// ────────────────────────────────────────
+// GAME LOGIC
+// ────────────────────────────────────────
+
+function processThrow(zone) {
+  if (state.waitingForNext) return;
+  saveSnapshot();
+
+  // Record turn start scores on first dart of the turn
+  if (state.currentTurnThrows.length === 0) {
+    state.turnStartScores = state.players.map(p => p.score);
+  }
+
+  const player   = state.players[state.currentPlayer];
+  const newScore = player.score - zone.score;
+  let bust = false, win = false;
+
+  if (newScore < 0 || (newScore === 1 && state.doubleOut)) {
+    bust = true;
+  } else if (newScore === 0) {
+    if (state.doubleOut && zone.ring !== 'double' && zone.ring !== 'bull') bust = true;
+    else win = true;
+  } else if (newScore === 1 && !state.doubleOut) {
+    // In straight out, 1 is a valid remaining score (can finish with any 1)
+    // Do nothing, continue play
+  }
+
+  zone.bust = bust;
+  if (!bust) player.score = newScore;
+
+  state.currentTurnThrows.push(zone);
+
+  // On bust: revert ALL scores to turn start
+  if (bust) {
+    state.players.forEach((p, i) => { p.score = state.turnStartScores[i]; });
+    state.waitingForNext = true;
+  } else if (win) {
+    state.gameOver = true;
+    state.waitingForNext = true;
+  } else if (state.currentTurnThrows.length >= 3) {
+    state.waitingForNext = true;
+  }
+  
+  if (state.waitingForNext && !state.gameOver) endTurn();
+
+  // Broadcast
+  channel.postMessage({
+    type:          'HIT',
+    zone,
+    bust,
+    win,
+    players:       state.players.map(p => ({ name: p.name, score: p.score, color: p.color })),
+    currentPlayer: state.currentPlayer,
+    doubleOut:     state.doubleOut,
+    checkouts:     state.players.map(p => state.doubleOut ? (CHECKOUTS[p.score] || null) : (p.score <= 170 && p.score >= 1 ? (CHECKOUTS[p.score] || `${p.score}`) : null)),
+  });
+
+  if (win) {
+    showToast(`${player.name} WINS! 🎯`);
+    setTimeout(() => channel.postMessage({ type: 'WIN', playerName: player.name, color: player.color, playerIndex: state.currentPlayer }), 300);
+  } else if (bust) {
+    showToast('BUST — scores reverted');
+  }
+
+  updateUI();
+}
+
+function processCricketThrow(zone) {
+  if (state.waitingForNext) return;
+  saveSnapshot();
+
+  if (state.currentTurnThrows.length === 0) {
+    state.turnStartScores = state.players.map((_, i) => state.cricket.points[i]);
+  }
+
+  const player = state.currentPlayer;
+  
+  // Map bull and outerBull to 25 for Cricket
+  let num = zone.segment;
+  if (zone.ring === 'bull' || zone.ring === 'outerBull') {
+    num = 25;
+  }
+  
+  // Only 15-20 and Bull (25) count in Cricket
+  if (![15,16,17,18,19,20,25].includes(num)) {
+    // Miss - doesn't count
+    zone.cricketMiss = true;
+  } else {
+    // Calculate marks (single=1, double=2, triple=3)
+    // In standard Cricket, both bull areas give 1 mark each
+    let marksToAdd;
+    if (zone.ring === 'triple') {
+      marksToAdd = 3;
+    } else if (zone.ring === 'double') {
+      marksToAdd = 2;
+    } else {
+      marksToAdd = 1; // single, bull, or outerBull all = 1 mark
+    }
+    
+    const currentMarks = state.cricket.marks[player][num];
+    const newMarks = Math.min(3, currentMarks + marksToAdd);
+    const overflow = currentMarks + marksToAdd - 3;
+    
+    state.cricket.marks[player][num] = newMarks;
+    zone.cricketMarks = marksToAdd;
+    zone.cricketNum = num;
+    
+    // Flash the cell that was just updated
+    setTimeout(() => {
+      const cell = document.getElementById(`cricket-mark-${player}-${num}`);
+      if (cell) {
+        cell.classList.add('flash');
+        setTimeout(() => cell.classList.remove('flash'), 600);
+      }
+    }, 50);
+    
+    // If closed and opponent hasn't closed, score points
+    if (overflow > 0) {
+      let canScore = false;
+      for (let i = 0; i < state.players.length; i++) {
+        if (i !== player && state.cricket.marks[i][num] < 3) {
+          canScore = true;
+          break;
+        }
+      }
+      if (canScore) {
+        state.cricket.points[player] += num * overflow;
+        zone.cricketPoints = num * overflow;
+      }
+    }
+  }
+
+  state.currentTurnThrows.push(zone);
+
+  // Check win condition: all numbers closed AND points >= all opponents
+  let win = false;
+  const allClosed = state.cricket.numbers.every(n => state.cricket.marks[player][n] >= 3);
+  if (allClosed) {
+    const myPoints = state.cricket.points[player];
+    win = state.players.every((_, i) => i === player || myPoints >= state.cricket.points[i]);
+  }
+
+  if (win) {
+    state.gameOver = true;
+    state.waitingForNext = true;
+  } else if (state.currentTurnThrows.length >= 3) {
+    state.waitingForNext = true;
+  }
+  
+  if (state.waitingForNext && !state.gameOver) endTurn();
+
+  // Broadcast
+  channel.postMessage({
+    type: 'HIT',
+    zone,
+    gameMode: 'cricket',
+    players: state.players.map((p, i) => ({ 
+      name: p.name, color: p.color,
+      points: state.cricket.points[i],
+      marks: state.cricket.marks[i]
+    })),
+    currentPlayer: state.currentPlayer,
+    cricket: { marks: state.cricket.marks, points: state.cricket.points, numbers: state.cricket.numbers },
+  });
+
+  if (win) {
+    const p = state.players[player];
+    showToast(`${p.name} WINS! 🎯`);
+    setTimeout(() => channel.postMessage({ type: 'WIN', playerName: p.name, color: p.color, playerIndex: player }), 300);
+  }
+
+  updateUI();
+}
+
+function processKillerThrow(zone) {
+  if (state.waitingForNext) return;
+  saveSnapshot();
+
+  if (state.currentTurnThrows.length === 0) {
+    state.turnStartScores = state.players.map((_, i) => state.killer.lives[i]);
+  }
+
+  const player = state.currentPlayer;
+  let hitNumber = zone.segment;
+  
+  // Map bull to 25
+  if (zone.ring === 'bull' || zone.ring === 'outerBull') {
+    hitNumber = 25;
+  }
+  
+  zone.killerAction = null;
+  zone.killerMiss = false;
+  
+  // In Killer straights, ANY hit on 1-20 or Bull counts (single/double/triple)
+  const validNumbers = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,25];
+  const isValidHit = validNumbers.includes(hitNumber) && 
+                     ['single', 'double', 'triple', 'bull', 'outerBull'].includes(zone.ring);
+  
+  if (!isValidHit) {
+    zone.killerMiss = true;
+  } else {
+    // Calculate hits based on ring
+    let hitsToAdd;
+    if (zone.ring === 'triple') {
+      hitsToAdd = 3;
+    } else if (zone.ring === 'double') {
+      hitsToAdd = 2;
+    } else if (zone.ring === 'bull') {
+      hitsToAdd = 2; // Inner bull = 2 hits
+    } else {
+      hitsToAdd = 1; // Single or outer bull
+    }
+    
+    const myNumber = state.killer.assignedNumbers[player];
+    const isKiller = state.killer.isKiller[player];
+    
+    if (!isKiller) {
+      // Not a killer yet - hitting own number progresses toward killer status
+      if (hitNumber === myNumber) {
+        const oldHits = state.killer.doublesHit[player];
+        state.killer.doublesHit[player] = Math.min(3, oldHits + hitsToAdd);
+        const newHits = state.killer.doublesHit[player];
+        
+        zone.killerAction = `+${hitsToAdd} (${newHits}/3)`;
+        
+        if (newHits >= 3) {
+          state.killer.isKiller[player] = true;
+          zone.killerAction = '💀 KILLER!';
+        }
+      } else {
+        zone.killerAction = `Need ${myNumber === 25 ? 'BULL' : myNumber}`;
+      }
+    } else {
+      // Already a killer - hitting opponent's number removes their lives
+      let targetPlayer = -1;
+      for (let i = 0; i < state.players.length; i++) {
+        if (i !== player && state.killer.assignedNumbers[i] === hitNumber && state.killer.lives[i] > 0) {
+          targetPlayer = i;
+          break;
+        }
+      }
+      
+      if (targetPlayer >= 0) {
+        state.killer.lives[targetPlayer] = Math.max(0, state.killer.lives[targetPlayer] - hitsToAdd);
+        zone.killerAction = `💥 ${state.players[targetPlayer].name} -${hitsToAdd} ❤`;
+        zone.killerTarget = targetPlayer;
+        zone.killerHitsDealt = hitsToAdd;
+      } else {
+        zone.killerAction = 'No target';
+      }
+    }
+  }
+
+  state.currentTurnThrows.push(zone);
+
+  // Check win condition: only 1 player with lives > 0
+  let win = false;
+  const playersAlive = state.players.filter((_, i) => state.killer.lives[i] > 0).length;
+  if (playersAlive === 1 && state.killer.lives[player] > 0) {
+    win = true;
+    state.gameOver = true;
+    state.waitingForNext = true;
+  } else if (state.currentTurnThrows.length >= 3) {
+    state.waitingForNext = true;
+  }
+  
+  if (state.waitingForNext && !state.gameOver) endTurn();
+
+  // Broadcast
+  channel.postMessage({
+    type: 'HIT',
+    zone,
+    gameMode: 'killer',
+    players: state.players.map((p, i) => ({ 
+      name: p.name, color: p.color,
+      lives: state.killer.lives[i],
+      isKiller: state.killer.isKiller[i],
+      doublesHit: state.killer.doublesHit[i],
+      number: state.killer.assignedNumbers[i]
+    })),
+    currentPlayer: state.currentPlayer,
+    killer: {
+      assignedNumbers: state.killer.assignedNumbers,
+      lives: state.killer.lives,
+      isKiller: state.killer.isKiller,
+      doublesHit: state.killer.doublesHit
+    },
+  });
+
+  if (win) {
+    const p = state.players[player];
+    showToast(`${p.name} WINS! 🎯`);
+    setTimeout(() => channel.postMessage({ type: 'WIN', playerName: p.name, color: p.color, playerIndex: player }), 300);
+  }
+
+  updateUI();
+}
+
+function nextPlayer() {
+  if (!state.waitingForNext || state.gameOver) return;
+  state.currentTurnThrows = [];
+  state.turnStartScores = [];
+  state.waitingForNext = false;
+  state.currentPlayer = (state.currentPlayer + 1) % state.players.length;
+
+  channel.postMessage({
+    type: 'NEXT_PLAYER',
+    gameMode: state.gameMode,
+    players: state.players.map((p, i) => ({ 
+      name: p.name, 
+      score: p.score, 
+      color: p.color,
+      points: state.gameMode === 'cricket' ? state.cricket.points[i] : undefined,
+      marks: state.gameMode === 'cricket' ? state.cricket.marks[i] : undefined,
+      lives: state.gameMode === 'killer' ? state.killer.lives[i] : undefined,
+      isKiller: state.gameMode === 'killer' ? state.killer.isKiller[i] : undefined,
+      doublesHit: state.gameMode === 'killer' ? state.killer.doublesHit[i] : undefined,
+      number: state.gameMode === 'killer' ? state.killer.assignedNumbers[i] : undefined
+    })),
+    currentPlayer: state.currentPlayer,
+    doubleOut: state.doubleOut,
+    cricket: state.gameMode === 'cricket' ? { marks: state.cricket.marks, points: state.cricket.points, numbers: state.cricket.numbers } : null,
+    killer: state.gameMode === 'killer' ? { assignedNumbers: state.killer.assignedNumbers, lives: state.killer.lives, isKiller: state.killer.isKiller, doublesHit: state.killer.doublesHit } : null,
+    checkouts: state.gameMode === 'x01' ? state.players.map(p => state.doubleOut ? (CHECKOUTS[p.score] || null) : (p.score <= 170 && p.score >= 1 ? (CHECKOUTS[p.score] || `${p.score}`) : null)) : null,
+  });
+
+  updateUI();
+}
+
+// Helper to handle end of turn - auto-advances for single player
+function endTurn() {
+  if (state.players.length === 1) {
+    // Single player mode - auto advance after brief delay
+    setTimeout(() => {
+      if (state.waitingForNext && !state.gameOver) {
+        nextPlayer();
+      }
+    }, 500);
+  }
+  // Multi-player mode - show Next Player button (handled by waitingForNext flag)
+}
+
+function missThrow() {
+  if (state.gameOver || state.waitingForNext) { return; }
+  if (state.currentTurnThrows.length >= 3) return;
+  const missZone = { ring: 'miss', segment: 0, score: 0, x: 0, y: 0, nr: 2, bust: false };
+  saveSnapshot();
+
+  if (state.currentTurnThrows.length === 0) {
+    state.turnStartScores = state.players.map(p => p.score);
+  }
+
+  state.currentTurnThrows.push(missZone);
+  if (state.currentTurnThrows.length >= 3) {
+    state.waitingForNext = true;
+    endTurn();
+  }
+
+  channel.postMessage({
+    type: 'HIT', zone: missZone, bust: false, win: false,
+    players: state.players.map(p => ({ name: p.name, score: p.score, color: p.color })),
+    currentPlayer: state.currentPlayer,
+    doubleOut: state.doubleOut,
+    checkouts: state.players.map(p => state.doubleOut ? (CHECKOUTS[p.score] || null) : (p.score <= 170 && p.score >= 1 ? (CHECKOUTS[p.score] || `${p.score}`) : null)),
+  });
+
+  updateUI();
+}
+
+function undoThrow() {
+  if (state.history.length === 0) return;
+  const snap = state.history.pop();
+  restoreSnapshot(snap);
+
+  channel.postMessage({
+    type:      'UNDO',
+    gameMode: state.gameMode,
+    players:   state.players.map((p, i) => ({ 
+      name: p.name, 
+      score: p.score, 
+      color: p.color,
+      points: state.gameMode === 'cricket' ? state.cricket.points[i] : undefined,
+      marks: state.gameMode === 'cricket' ? state.cricket.marks[i] : undefined,
+      lives: state.gameMode === 'killer' ? state.killer.lives[i] : undefined,
+      isKiller: state.gameMode === 'killer' ? state.killer.isKiller[i] : undefined,
+      doublesHit: state.gameMode === 'killer' ? state.killer.doublesHit[i] : undefined,
+      number: state.gameMode === 'killer' ? state.killer.assignedNumbers[i] : undefined
+    })),
+    currentPlayer: state.currentPlayer,
+    doubleOut: state.doubleOut,
+    cricket: state.gameMode === 'cricket' ? { marks: state.cricket.marks, points: state.cricket.points, numbers: state.cricket.numbers } : null,
+    killer: state.gameMode === 'killer' ? { assignedNumbers: state.killer.assignedNumbers, lives: state.killer.lives, isKiller: state.killer.isKiller, doublesHit: state.killer.doublesHit } : null,
+    checkouts: state.gameMode === 'x01' ? state.players.map(p => state.doubleOut ? (CHECKOUTS[p.score] || null) : (p.score <= 170 && p.score >= 1 ? (CHECKOUTS[p.score] || `${p.score}`) : null)) : null,
+  });
+
+  updateUI();
+}
+
+function newGame() {
+  openSetup();
+}
+
+function updateUI() {
+  if (state.gameMode === 'killer') {
+    // Update Killer scoreboard (no highlighting)
+    state.players.forEach((p, i) => {
+      // Update turn indicator
+      const turnCard = document.getElementById('turn-card-' + i);
+      if (turnCard) {
+        turnCard.classList.toggle('active', i === state.currentPlayer && !state.gameOver);
+      }
+      
+      // Update lives
+      const livesCell = document.getElementById('killer-lives-' + i);
+      if (livesCell) {
+        let livesDisplay = '';
+        for (let l = 0; l < state.killer.lives[i]; l++) livesDisplay += '❤';
+        livesCell.textContent = livesDisplay;
+      }
+      
+      // Update status
+      const statusCell = document.getElementById('killer-status-' + i);
+      if (statusCell) {
+        const isKiller = state.killer.isKiller[i];
+        const doublesHit = state.killer.doublesHit[i];
+        statusCell.textContent = isKiller ? '💀 KILLER' : `${doublesHit}/3`;
+      }
+      
+      // Dart pips
+      for (let d = 0; d < 3; d++) {
+        const pip = document.getElementById(`pip-${i}-${d}`);
+        if (pip) pip.classList.toggle('used', i === state.currentPlayer && d < state.currentTurnThrows.length);
+      }
+      
+      // Current turn throws
+      const throwsEl = document.getElementById('pthrows-' + i);
+      if (throwsEl && i === state.currentPlayer) {
+        throwsEl.innerHTML = '';
+        state.currentTurnThrows.forEach(z => {
+          const chip = document.createElement('div');
+          chip.className = 'throw-chip';
+          if (z.killerMiss) {
+            chip.textContent = 'MISS';
+            chip.style.color = '#888';
+          } else if (z.killerAction) {
+            chip.textContent = z.killerAction;
+            const ringClass = z.ring === 'triple' ? 'trp' : z.ring === 'double' ? 'dbl' : '';
+            chip.className = 'throw-chip ' + ringClass;
+          }
+          throwsEl.appendChild(chip);
+        });
+      }
+    });
+  } else if (state.gameMode === 'cricket') {
+    // Update Cricket scoreboard
+    state.players.forEach((p, i) => {
+      // Update turn indicator
+      const turnCard = document.getElementById('turn-card-' + i);
+      if (turnCard) {
+        turnCard.classList.toggle('active', i === state.currentPlayer && !state.gameOver);
+      }
+      
+      // Update total points
+      const ptsCell = document.getElementById('cricket-total-' + i);
+      if (ptsCell) ptsCell.textContent = state.cricket.points[i];
+      
+      // Update marks for each number
+      state.cricket.numbers.forEach(num => {
+        const cell = document.getElementById(`cricket-mark-${i}-${num}`);
+        if (cell) {
+          const marks = state.cricket.marks[i][num];
+          cell.textContent = getMarkSymbol(marks);
+          cell.classList.toggle('closed', marks >= 3);
+          cell.classList.toggle('open', marks < 3);
+        }
+      });
+      
+      // Dart pips
+      for (let d = 0; d < 3; d++) {
+        const pip = document.getElementById(`pip-${i}-${d}`);
+        if (pip) pip.classList.toggle('used', i === state.currentPlayer && d < state.currentTurnThrows.length);
+      }
+      
+      // Current turn throws
+      const throwsEl = document.getElementById('pthrows-' + i);
+      if (throwsEl && i === state.currentPlayer) {
+        throwsEl.innerHTML = '';
+        state.currentTurnThrows.forEach(z => {
+          const chip = document.createElement('div');
+          chip.className = 'throw-chip';
+          if (z.cricketMiss) {
+            chip.textContent = 'MISS';
+            chip.style.color = '#888';
+          } else if (z.cricketNum) {
+            const pre = z.ring === 'double' ? 'D' : z.ring === 'triple' ? 'T' : '';
+            const numDisplay = z.cricketNum === 25 ? 'B' : z.cricketNum;
+            chip.textContent = `${pre}${numDisplay}`;
+            if (z.cricketPoints) chip.textContent += ` +${z.cricketPoints}`;
+            chip.className = 'throw-chip ' + (z.ring === 'triple' ? 'trp' : z.ring === 'double' ? 'dbl' : '');
+          }
+          throwsEl.appendChild(chip);
+        });
+      }
+    });
+  } else {
+    // X01 mode updates
+    state.players.forEach((p, i) => {
+      const se = document.getElementById('pscore-' + i);
+      const ca = document.getElementById('card-' + i);
+      if (se) se.textContent = p.score;
+      if (ca) ca.classList.toggle('active', i === state.currentPlayer && !state.gameOver);
+
+      for (let d = 0; d < 3; d++) {
+        const pip = document.getElementById(`pip-${i}-${d}`);
+        if (pip) pip.classList.toggle('used', i === state.currentPlayer && d < state.currentTurnThrows.length);
+      }
+
+      const throwsEl = document.getElementById('pthrows-' + i);
+      if (!throwsEl) return;
+      throwsEl.innerHTML = '';
+      if (i === state.currentPlayer) {
+        state.currentTurnThrows.forEach(z => {
+          const chip = document.createElement('div');
+          const cls = z.bust ? 'bst' : z.ring === 'double' ? 'dbl' : z.ring === 'triple' ? 'trp' :
+                      (z.ring === 'bull' || z.ring === 'outerBull') ? 'bul' : '';
+          chip.className = 'throw-chip ' + cls;
+          if (z.bust) { chip.textContent = 'BUST'; }
+          else if (z.ring === 'miss') { chip.textContent = 'MISS'; chip.className = 'throw-chip'; chip.style.color = '#888'; }
+          else {
+            const prefix = z.ring === 'double' ? 'D' : z.ring === 'triple' ? 'T' : '';
+            const seg    = z.ring === 'bull' ? 'BULL' : z.ring === 'outerBull' ? '25' : z.segment;
+            chip.textContent = `${prefix}${seg}  +${z.score}`;
+          }
+          throwsEl.appendChild(chip);
+        });
+      }
+    });
+
+    const score = state.players[state.currentPlayer]?.score;
+    const cs = document.getElementById('checkout-score');
+    const cp = document.getElementById('checkout-path');
+    const hint = score ? CHECKOUTS[score] : null;
+    const reachable = !state.gameOver && score !== undefined &&
+      (state.doubleOut ? (score <= 170 && score >= 2 && hint) : (score >= 1 && score <= 170));
+    if (reachable && cs && cp) {
+      cs.textContent = `${score} → checkout`;
+      cp.textContent = hint || 'No standard route';
+    } else if (cs && cp) {
+      cs.textContent = '';
+      cp.textContent = '';
+    }
+  }
+
+  // Next player overlay — appears after 3 darts or bust (not after win)
+  // Hidden in single player mode (auto-advances)
+  const overlay = document.getElementById('next-overlay');
+  if (overlay) {
+    const showNext = state.waitingForNext && !state.gameOver && state.players.length > 1;
+    overlay.classList.toggle('hidden', !showNext);
+  }
+}
+
+
+// ════════════════════════════════════════════════════════
+// ██ PROJECTION MODE
+// ════════════════════════════════════════════════════════
+function initProjection() {
+  document.getElementById('projection-layout').classList.remove('hidden');
+  document.title = 'DART AR — Projection';
+
+  const canvas = document.getElementById('projection-canvas');
+  const ctx    = canvas.getContext('2d');
+  let boardR, cx, cy;
+
+  // Animation queues
+  const effects = [];   // { startTime, duration, render }
+  const particles = []; // particle objects
+
+  function addEffect(e) {
+    effects.push({ ...e, startTime: performance.now() });
+  }
+
+  function resize() {
+    canvas.width  = window.innerWidth;
+    canvas.height = window.innerHeight;
+    cx = canvas.width / 2;
+    cy = canvas.height / 2;
+    boardR = Math.min(canvas.width, canvas.height) * 0.42;
+  }
+
+  let glowZone    = null; // currently highlighted zone
+  let glowExpiry  = 0;
+  let killerHighlightSections = []; // array of segment numbers to highlight in Killer mode
+  let killerHighlightColor = '#ffc840'; // color for killer highlights
+  let projCalibMode = false;
+
+  function frame() {
+    const now = performance.now();
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // Background
+    ctx.fillStyle = '#000';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // Ambient board glow
+    const ambient = ctx.createRadialGradient(cx, cy, 0, cx, cy, boardR * 1.4);
+    ambient.addColorStop(0, 'rgba(20,14,6,0.7)');
+    ambient.addColorStop(1, 'transparent');
+    ctx.fillStyle = ambient;
+    ctx.beginPath();
+    ctx.arc(cx, cy, boardR * 1.4, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Fade out glow zone
+    if (glowZone && now > glowExpiry) glowZone = null;
+
+    drawDartboard(ctx, cx, cy, boardR, { 
+      glow: glowZone, 
+      dimmed: projCalibMode, 
+      hideNumbers: true,
+      killerHighlightSections,
+      killerHighlightColor
+    });
+
+    // Calibration overlay (when in calib mode)
+    if (projCalibMode) drawCalibOverlay(ctx, cx, cy, boardR, now);
+
+    // Render & prune effects
+    for (let i = effects.length - 1; i >= 0; i--) {
+      const ef = effects[i];
+      const t  = Math.min((now - ef.startTime) / ef.duration, 1);
+      ef.renderFn(ctx, t, cx, cy, boardR);
+      if (t >= 1) effects.splice(i, 1);
+    }
+
+    // Particles
+    for (let i = particles.length - 1; i >= 0; i--) {
+      const p = particles[i];
+      p.x  += p.vx;
+      p.y  += p.vy;
+      p.vy += 0.18;
+      p.life -= 0.022;
+      if (p.life <= 0) { particles.splice(i, 1); continue; }
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.r * p.life, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(${p.rgb},${p.life})`;
+      ctx.fill();
+    }
+
+    requestAnimationFrame(frame);
+  }
+
+  window.addEventListener('resize', resize);
+  resize();
+  requestAnimationFrame(frame);
+
+  // Fullscreen shortcut
+  document.addEventListener('keydown', e => {
+    if (e.key === 'f' || e.key === 'F') {
+      if (!document.fullscreenElement) document.documentElement.requestFullscreen?.();
+      else document.exitFullscreen?.();
+    }
+  });
+
+  // Tell control window we're open — request current state
+  channel.postMessage({ type: 'PROJ_READY' });
+
+  // ── Receive messages ──────────────────
+  channel.onmessage = ({ data: msg }) => {
+
+    if (msg.type === 'SYNC' || msg.type === 'NEW_GAME') {
+      glowZone = null;
+      clearProjHand();
+      buildProjScores(msg.players, msg.currentPlayer || 0, msg.gameMode, msg.cricket, msg.killer);
+      
+      // Set killer highlighting
+      if (msg.gameMode === 'killer' && msg.killer) {
+        const currentPlayer = msg.currentPlayer || 0;
+        const currentIsKiller = msg.killer.isKiller[currentPlayer];
+        const currentPlayerColor = msg.players[currentPlayer]?.color || '#ffc840';
+        
+        if (!currentIsKiller) {
+          killerHighlightSections = [msg.killer.assignedNumbers[currentPlayer]];
+          killerHighlightColor = currentPlayerColor;
+        } else {
+          killerHighlightSections = [];
+          for (let i = 0; i < msg.players.length; i++) {
+            if (i !== currentPlayer && msg.killer.lives[i] > 0) {
+              killerHighlightSections.push(msg.killer.assignedNumbers[i]);
+            }
+          }
+          killerHighlightColor = currentPlayerColor;
+        }
+      } else {
+        killerHighlightSections = [];
+      }
+      
+      if (msg.gameMode === 'x01' && msg.players) {
+        updateProjCheckouts(msg.players, msg.currentPlayer || 0, msg.doubleOut ?? true);
+      }
+    }
+
+    if (msg.type === 'HIT') {
+      const { zone, bust, win, players, currentPlayer, gameMode, cricket, killer } = msg;
+
+      // Killer mode updates
+      if (gameMode === 'killer' && killer) {
+        players.forEach((p, i) => {
+          const livesCell = document.getElementById('proj-killer-lives-' + i);
+          if (livesCell) {
+            let livesDisplay = '';
+            for (let l = 0; l < killer.lives[i]; l++) livesDisplay += '❤';
+            livesCell.textContent = livesDisplay;
+          }
+          
+          const statusCell = document.getElementById('proj-killer-status-' + i);
+          if (statusCell) {
+            const isKiller = killer.isKiller[i];
+            const doublesHit = killer.doublesHit[i] || 0;
+            statusCell.textContent = isKiller ? '💀' : `${doublesHit}/3`;
+          }
+        });
+        updateActiveProjPlayer(currentPlayer);
+        
+        // Update section highlighting
+        const currentIsKiller = killer.isKiller[currentPlayer];
+        const currentPlayerColor = players[currentPlayer]?.color || '#ffc840';
+        
+        console.log('Killer HIT - updating highlights:', {
+          currentPlayer,
+          currentIsKiller,
+          assignedNumbers: killer.assignedNumbers,
+          lives: killer.lives
+        });
+        
+        if (!currentIsKiller) {
+          // Not a killer - highlight own number
+          killerHighlightSections = [killer.assignedNumbers[currentPlayer]];
+          killerHighlightColor = currentPlayerColor;
+          console.log('Not killer - highlighting own:', killerHighlightSections);
+        } else {
+          // Is a killer - highlight all opponent numbers with lives
+          killerHighlightSections = [];
+          for (let i = 0; i < players.length; i++) {
+            if (i !== currentPlayer && killer.lives[i] > 0) {
+              killerHighlightSections.push(killer.assignedNumbers[i]);
+            }
+          }
+          killerHighlightColor = currentPlayerColor;
+          console.log('Is killer - highlighting opponents:', killerHighlightSections);
+        }
+        
+        // Show hit animation for valid hits
+        if (!zone.killerMiss && zone.x !== undefined) {
+          const hitX = cx + zone.x * boardR;
+          const hitY = cy + zone.y * boardR;
+          glowZone = { ...zone, playerColor: currentPlayerColor };
+          glowExpiry = performance.now() + 1200;
+          
+          // Add hit effects
+          for (let r = 0; r < 3; r++) {
+            const delay = r * 90;
+            const maxRing = boardR * (0.09 + r * 0.055);
+            addEffect({
+              duration: 650,
+              renderFn(ctx, t, cx, cy) {
+                const now = performance.now();
+                const localT = Math.min((now - this.startTime - delay) / this.duration, 1);
+                if (localT < 0) return;
+                const rr = easeOut(localT) * maxRing;
+                ctx.save();
+                ctx.globalAlpha = (1 - localT) * 0.8;
+                ctx.beginPath();
+                ctx.arc(hitX, hitY, rr, 0, Math.PI * 2);
+                ctx.strokeStyle = currentPlayerColor;
+                ctx.lineWidth = 2.5 * (1 - localT);
+                ctx.shadowColor = currentPlayerColor;
+                ctx.shadowBlur = 14;
+                ctx.stroke();
+                ctx.restore();
+              }
+            });
+          }
+        }
+        return;
+      }
+
+      // Cricket mode updates
+      if (gameMode === 'cricket' && cricket) {
+        // Update marks and points
+        players.forEach((p, i) => {
+          const ptsCell = document.getElementById('proj-cricket-pts-' + i);
+          if (ptsCell) ptsCell.textContent = p.points || 0;
+          
+          cricket.numbers.forEach(num => {
+            const cell = document.getElementById(`proj-cricket-${i}-${num}`);
+            if (cell) {
+              const marks = cricket.marks[i]?.[num] || 0;
+              cell.textContent = getMarkSymbol(marks);
+              cell.classList.toggle('closed', marks >= 3);
+              cell.classList.toggle('open', marks < 3);
+            }
+          });
+        });
+        updateActiveProjPlayer(currentPlayer);
+        
+        // Skip board animations for Cricket - just show the hit
+        if (!zone.cricketMiss && zone.cricketNum) {
+          const hitX = cx + zone.x * boardR;
+          const hitY = cy + zone.y * boardR;
+          const playerColor = players[currentPlayer]?.color || '#ffc840';
+          glowZone = { ...zone, playerColor };
+          glowExpiry = performance.now() + 1200;
+        }
+        return;
+      }
+
+      // X01 mode updates
+      const { doubleOut, checkouts } = msg;
+      players.forEach((p, i) => {
+        const sc = document.getElementById('proj-pscore-' + i);
+        const nm = document.getElementById('proj-pname-' + i);
+        if (sc) sc.textContent = p.score;
+        if (nm) nm.textContent = p.name;
+      });
+      updateActiveProjPlayer(currentPlayer);
+      updateProjCheckouts(players, currentPlayer, doubleOut ?? true);
+
+      // Miss = off board, update hand then skip canvas effects
+      const isMiss = zone.ring === 'miss';
+      if (isMiss) {
+        updateProjHand(players, currentPlayer, zone, bust);
+        return;
+      }
+
+      const hitX  = cx + zone.x * boardR;
+      const hitY  = cy + zone.y * boardR;
+      const color = bust           ? HIT_CLR.bust :
+                    zone.ring === 'bull' || zone.ring === 'outerBull' ? HIT_CLR.bull :
+                    zone.ring === 'double' ? HIT_CLR.double :
+                    zone.ring === 'triple' ? HIT_CLR.triple : HIT_CLR.single;
+
+      // Flash the hit zone in player color
+      const playerColor = players[currentPlayer]?.color || color;
+      if (!bust) {
+        glowZone   = { ...zone, playerColor };
+        glowExpiry = performance.now() + 1600;
+      }
+
+      // Shockwave rings (in player color)
+      for (let r = 0; r < 3; r++) {
+        const delay   = r * 90;
+        const maxRing = boardR * (0.09 + r * 0.055);
+        addEffect({
+          duration: 650,
+          renderFn(ctx, t, cx, cy) {
+            const now = performance.now();
+            const localT = Math.min((now - this.startTime - delay) / this.duration, 1);
+            if (localT < 0) return;
+            const rr = easeOut(localT) * maxRing;
+            ctx.save();
+            ctx.globalAlpha = (1 - localT) * 0.8;
+            ctx.beginPath();
+            ctx.arc(hitX, hitY, rr, 0, Math.PI * 2);
+            ctx.strokeStyle = playerColor;
+            ctx.lineWidth = 2.5 * (1 - localT);
+            ctx.shadowColor = playerColor;
+            ctx.shadowBlur = 14;
+            ctx.stroke();
+            ctx.restore();
+          }
+        });
+      }
+
+      // Impact flash (in player color)
+      addEffect({
+        duration: 180,
+        renderFn(ctx, t) {
+          ctx.save();
+          ctx.globalAlpha = (1 - t) * 0.35;
+          const rr = boardR * R.bull * 0.6 + easeOut(t) * boardR * 0.12;
+          const g  = ctx.createRadialGradient(hitX, hitY, 0, hitX, hitY, rr * 4);
+          g.addColorStop(0, playerColor);
+          g.addColorStop(1, 'transparent');
+          ctx.fillStyle = g;
+          ctx.fillRect(hitX - rr*4, hitY - rr*4, rr*8, rr*8);
+          ctx.restore();
+        }
+      });
+
+      // Update current hand display
+      updateProjHand(players, currentPlayer, zone, bust);
+
+      // Particles for double / triple / bull
+      if (!bust && (zone.ring === 'bull' || zone.ring === 'double' || zone.ring === 'triple')) {
+        const count = zone.ring === 'bull' ? 35 : 16;
+        const rgb   = zone.ring === 'bull'    ? '255,149,0' :
+                      zone.ring === 'double'  ? '255,51,102' : '0,238,136';
+        for (let j = 0; j < count; j++) {
+          const a = Math.random() * Math.PI * 2;
+          const s = 2 + Math.random() * 5;
+          particles.push({ x: hitX, y: hitY,
+            vx: Math.cos(a) * s, vy: Math.sin(a) * s - 1.5,
+            r: 2 + Math.random() * 3, rgb, life: 0.7 + Math.random() * 0.5 });
+        }
+      }
+
+      // WIN celebration
+      if (win) {
+        addEffect({
+          duration: 3200,
+          renderFn(ctx, t, cx, cy, boardR) {
+            const pulse = 0.5 + 0.5 * Math.sin(t * Math.PI * 6);
+            ctx.save();
+            ctx.globalAlpha = Math.sin(t * Math.PI) * 0.55;
+            const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, boardR * 1.6);
+            g.addColorStop(0, 'rgba(255,200,64,0.5)');
+            g.addColorStop(1, 'transparent');
+            ctx.fillStyle = g;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            ctx.globalAlpha = Math.sin(t * Math.PI) * pulse;
+            ctx.font = `900 ${Math.round(boardR * 0.22)}px 'Orbitron', sans-serif`;
+            ctx.fillStyle = '#ffc840';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.shadowColor = '#ffc840';
+            ctx.shadowBlur = 50;
+            ctx.fillText('CHECKOUT!', cx, cy);
+            ctx.restore();
+          }
+        });
+
+        // Win particle burst from board center
+        for (let j = 0; j < 60; j++) {
+          const a = Math.random() * Math.PI * 2;
+          const s = 3 + Math.random() * 8;
+          particles.push({ x: cx, y: cy,
+            vx: Math.cos(a) * s, vy: Math.sin(a) * s - 4,
+            r: 2 + Math.random() * 4, rgb: '255,200,64',
+            life: 0.9 + Math.random() * 0.6 });
+        }
+      }
+    }
+
+    if (msg.type === 'UNDO') {
+      glowZone = null;
+      clearProjHand();
+      
+      if (msg.gameMode === 'killer' && msg.killer) {
+        // Update Killer data
+        msg.players?.forEach((p, i) => {
+          const livesCell = document.getElementById('proj-killer-lives-' + i);
+          if (livesCell) {
+            let livesDisplay = '';
+            for (let l = 0; l < msg.killer.lives[i]; l++) livesDisplay += '❤';
+            livesCell.textContent = livesDisplay;
+          }
+          
+          const statusCell = document.getElementById('proj-killer-status-' + i);
+          if (statusCell) {
+            const isKiller = msg.killer.isKiller[i];
+            const doublesHit = msg.killer.doublesHit[i] || 0;
+            statusCell.textContent = isKiller ? '💀' : `${doublesHit}/3`;
+          }
+        });
+        
+        // Update highlighting
+        const currentPlayer = msg.currentPlayer || 0;
+        const currentIsKiller = msg.killer.isKiller[currentPlayer];
+        const currentPlayerColor = msg.players[currentPlayer]?.color || '#ffc840';
+        
+        if (!currentIsKiller) {
+          killerHighlightSections = [msg.killer.assignedNumbers[currentPlayer]];
+          killerHighlightColor = currentPlayerColor;
+        } else {
+          killerHighlightSections = [];
+          for (let i = 0; i < msg.players.length; i++) {
+            if (i !== currentPlayer && msg.killer.lives[i] > 0) {
+              killerHighlightSections.push(msg.killer.assignedNumbers[i]);
+            }
+          }
+          killerHighlightColor = currentPlayerColor;
+        }
+      } else if (msg.gameMode === 'cricket' && msg.cricket) {
+        // Update Cricket marks and points
+        msg.players?.forEach((p, i) => {
+          const ptsCell = document.getElementById('proj-cricket-pts-' + i);
+          if (ptsCell) ptsCell.textContent = p.points || 0;
+          
+          msg.cricket.numbers.forEach(num => {
+            const cell = document.getElementById(`proj-cricket-${i}-${num}`);
+            if (cell) {
+              const marks = msg.cricket.marks[i]?.[num] || 0;
+              cell.textContent = getMarkSymbol(marks);
+              cell.classList.toggle('closed', marks >= 3);
+              cell.classList.toggle('open', marks < 3);
+            }
+          });
+        });
+      } else {
+        // Update X01 scores
+        msg.players?.forEach((p, i) => {
+          const sc = document.getElementById('proj-pscore-' + i);
+          const nm = document.getElementById('proj-pname-' + i);
+          if (sc) sc.textContent = p.score;
+          if (nm) nm.textContent = p.name;
+        });
+        if (msg.players) updateProjCheckouts(msg.players, msg.currentPlayer || 0, msg.doubleOut ?? true);
+      }
+      
+      updateActiveProjPlayer(msg.currentPlayer || 0);
+    }
+
+    if (msg.type === 'NEXT_PLAYER') {
+      glowZone = null;
+      clearProjHand();
+      
+      if (msg.gameMode === 'killer' && msg.killer) {
+        // Update Killer data
+        msg.players?.forEach((p, i) => {
+          const livesCell = document.getElementById('proj-killer-lives-' + i);
+          if (livesCell) {
+            let livesDisplay = '';
+            for (let l = 0; l < msg.killer.lives[i]; l++) livesDisplay += '❤';
+            livesCell.textContent = livesDisplay;
+          }
+          
+          const statusCell = document.getElementById('proj-killer-status-' + i);
+          if (statusCell) {
+            const isKiller = msg.killer.isKiller[i];
+            const doublesHit = msg.killer.doublesHit[i] || 0;
+            statusCell.textContent = isKiller ? '💀' : `${doublesHit}/3`;
+          }
+        });
+        
+        // Update highlighting for new player
+        const currentPlayer = msg.currentPlayer || 0;
+        const currentIsKiller = msg.killer.isKiller[currentPlayer];
+        const currentPlayerColor = msg.players[currentPlayer]?.color || '#ffc840';
+        
+        if (!currentIsKiller) {
+          killerHighlightSections = [msg.killer.assignedNumbers[currentPlayer]];
+          killerHighlightColor = currentPlayerColor;
+        } else {
+          killerHighlightSections = [];
+          for (let i = 0; i < msg.players.length; i++) {
+            if (i !== currentPlayer && msg.killer.lives[i] > 0) {
+              killerHighlightSections.push(msg.killer.assignedNumbers[i]);
+            }
+          }
+          killerHighlightColor = currentPlayerColor;
+        }
+      } else if (msg.gameMode === 'cricket' && msg.cricket) {
+        // Update Cricket marks and points
+        msg.players?.forEach((p, i) => {
+          const ptsCell = document.getElementById('proj-cricket-pts-' + i);
+          if (ptsCell) ptsCell.textContent = p.points || 0;
+          
+          msg.cricket.numbers.forEach(num => {
+            const cell = document.getElementById(`proj-cricket-${i}-${num}`);
+            if (cell) {
+              const marks = msg.cricket.marks[i]?.[num] || 0;
+              cell.textContent = getMarkSymbol(marks);
+              cell.classList.toggle('closed', marks >= 3);
+              cell.classList.toggle('open', marks < 3);
+            }
+          });
+        });
+      } else {
+        // Update X01 scores
+        msg.players?.forEach((p, i) => {
+          const sc = document.getElementById('proj-pscore-' + i);
+          if (sc) sc.textContent = p.score;
+        });
+        if (msg.players) updateProjCheckouts(msg.players, msg.currentPlayer || 0, msg.doubleOut ?? true);
+      }
+      
+      updateActiveProjPlayer(msg.currentPlayer || 0);
+    }
+
+    if (msg.type === 'WIN') {
+      const { playerName, color, playerIndex } = msg;
+      
+      // Animate the winning player's block on the left
+      const winBlock = document.querySelector('.proj-player-block.winner');
+      if (winBlock) winBlock.classList.remove('winner');
+      
+      // Find and animate the winner's block
+      const blocks = document.querySelectorAll('.proj-player-block');
+      blocks.forEach((block, i) => {
+        if (block.querySelector('.proj-player-name')?.textContent === playerName) {
+          block.classList.add('winner');
+        }
+      });
+      
+      // Particle burst from left side (where scores are)
+      const burstX = canvas.width * 0.12;
+      const burstY = canvas.height * 0.5;
+      
+      for (let wave = 0; wave < 4; wave++) {
+        setTimeout(() => {
+          for (let j = 0; j < 60; j++) {
+            const a = Math.random() * Math.PI * 2;
+            const s = 3 + Math.random() * 10;
+            const rgb = wave % 2 === 0 ? color.replace('#', '').match(/.{2}/g).map(h => parseInt(h, 16)).join(',') : '255,200,64';
+            particles.push({
+              x: burstX, y: burstY,
+              vx: Math.cos(a) * s, vy: Math.sin(a) * s - 5,
+              r: 2 + Math.random() * 5, rgb,
+              life: 0.7 + Math.random() * 0.9
+            });
+          }
+        }, wave * 400);
+      }
+    }
+
+    if (msg.type === 'CALIB') {
+      applyTransformToProjection(canvas, msg.calib);
+      projCalibMode = msg.calibMode ?? false;
+    }
+  };
+
+  // Apply saved calib immediately when projection opens
+  const savedC = loadCalib();
+  applyTransformToProjection(canvas, savedC);
+}
+
+// ════════════════════════════════════════════════════════
+// ██ CALIBRATION
+// ════════════════════════════════════════════════════════
+
+const CALIB_KEY      = 'dart-ar-calib-v1';
+const CALIB_DEFAULTS = { x: 0, y: 0, scale: 100 };
+
+let calib     = { ...CALIB_DEFAULTS };
+let calibMode = false;
+let stepSize  = 'coarse';  // 'coarse' | 'fine'
+
+// Step sizes: [position px, scale %]
+const STEPS = { coarse: [8, 2], fine: [1, 0.5] };
+
+// Repeating move loop
+let moveInterval = null;
+
+function loadCalib() {
+  try {
+    const s = JSON.parse(localStorage.getItem(CALIB_KEY));
+    return s ? { ...CALIB_DEFAULTS, ...s } : { ...CALIB_DEFAULTS };
+  } catch { return { ...CALIB_DEFAULTS }; }
+}
+
+function saveCalib() {
+  try { localStorage.setItem(CALIB_KEY, JSON.stringify(calib)); } catch {}
+}
+
+function applyCalib() {
+  saveCalib();
+  document.getElementById('calib-scale-disp').textContent = calib.scale.toFixed(1) + '%';
+  channel.postMessage({ type: 'CALIB', calib, calibMode });
+}
+
+function resetCalib() {
+  calib = { ...CALIB_DEFAULTS };
+  applyCalib();
+}
+
+function setStep(s) {
+  stepSize = s;
+  document.getElementById('step-coarse').classList.toggle('sel', s === 'coarse');
+  document.getElementById('step-fine').classList.toggle('sel', s === 'fine');
+}
+
+function toggleCalibMode() {
+  calibMode = !calibMode;
+  document.getElementById('calib-mode-btn').classList.toggle('active', calibMode);
+  document.getElementById('calib-controls').classList.toggle('visible', calibMode);
+  channel.postMessage({ type: 'CALIB', calib, calibMode });
+}
+
+// D-pad continuous movement while held
+function startMove(dx, dy) {
+  stopMove();
+  const [posStep] = STEPS[stepSize];
+  const doMove = () => {
+    calib.x += dx * posStep;
+    calib.y += dy * posStep;
+    applyCalib();
+  };
+  doMove();
+  moveInterval = setInterval(doMove, 80);
+}
+
+function startScale(dir) {
+  stopMove();
+  const [, scaleStep] = STEPS[stepSize];
+  const doScale = () => {
+    calib.scale = Math.max(30, Math.min(300, calib.scale + dir * scaleStep));
+    applyCalib();
+  };
+  doScale();
+  moveInterval = setInterval(doScale, 80);
+}
+
+function stopMove() {
+  clearInterval(moveInterval);
+  moveInterval = null;
+}
+
+// Keyboard shortcuts when calib mode is open
+document.addEventListener('keydown', e => {
+  if (!calibMode) return;
+  const map = { ArrowLeft:[-1,0], ArrowRight:[1,0], ArrowUp:[0,-1], ArrowDown:[0,1] };
+  if (map[e.key]) {
+    e.preventDefault();
+    const [posStep] = STEPS[stepSize];
+    calib.x += map[e.key][0] * posStep;
+    calib.y += map[e.key][1] * posStep;
+    applyCalib();
+  }
+  if (e.key === '+' || e.key === '=') {
+    const [, scaleStep] = STEPS[stepSize];
+    calib.scale = Math.min(300, calib.scale + scaleStep);
+    applyCalib();
+  }
+  if (e.key === '-') {
+    const [, scaleStep] = STEPS[stepSize];
+    calib.scale = Math.max(30, calib.scale - scaleStep);
+    applyCalib();
+  }
+});
+
+function initCalib() {
+  calib = loadCalib();
+  document.getElementById('calib-scale-disp').textContent = calib.scale.toFixed(1) + '%';
+  channel.postMessage({ type: 'CALIB', calib, calibMode: false });
+}
+
+// ── CALIBRATION OVERLAY DRAW (called from projection frame loop) ──────────
+function drawCalibOverlay(ctx, cx, cy, boardR, t) {
+  // t = time in ms for animation
+  const pulse = 0.65 + 0.35 * Math.sin(t / 500);
+
+  ctx.save();
+
+  // Outer double ring — the main alignment guide
+  ctx.beginPath();
+  ctx.arc(cx, cy, boardR * R.doubleOuter, 0, Math.PI * 2);
+  ctx.strokeStyle = `rgba(0,255,204,${0.85 * pulse})`;
+  ctx.lineWidth = 2.5;
+  ctx.shadowColor = '#00ffcc';
+  ctx.shadowBlur = 18;
+  ctx.stroke();
+  ctx.shadowBlur = 0;
+
+  // Inner double ring
+  ctx.beginPath();
+  ctx.arc(cx, cy, boardR * R.doubleInner, 0, Math.PI * 2);
+  ctx.strokeStyle = `rgba(0,255,204,${0.3 * pulse})`;
+  ctx.lineWidth = 1;
+  ctx.stroke();
+
+  // Crosshair
+  const ch = boardR * 0.18;
+  ctx.strokeStyle = `rgba(0,255,204,${0.7 * pulse})`;
+  ctx.lineWidth = 1.5;
+  ctx.shadowColor = '#00ffcc';
+  ctx.shadowBlur = 10;
+  ctx.beginPath();
+  ctx.moveTo(cx - ch, cy); ctx.lineTo(cx + ch, cy);
+  ctx.moveTo(cx, cy - ch); ctx.lineTo(cx, cy + ch);
+  ctx.stroke();
+
+  // Cardinal ticks (top = 20, right = 6, bottom = 3, left = 11)
+  const tickAngles = [0, 90, 180, 270];
+  tickAngles.forEach(deg => {
+    const a = deg2rad(deg - 90);
+    const r1 = boardR * R.doubleOuter * 1.04;
+    const r2 = boardR * R.doubleOuter * 1.14;
+    ctx.beginPath();
+    ctx.moveTo(cx + r1 * Math.cos(a), cy + r1 * Math.sin(a));
+    ctx.lineTo(cx + r2 * Math.cos(a), cy + r2 * Math.sin(a));
+    ctx.strokeStyle = `rgba(0,255,204,${0.9 * pulse})`;
+    ctx.lineWidth = 2;
+    ctx.shadowBlur = 12;
+    ctx.stroke();
+  });
+
+  // Corner label
+  ctx.shadowBlur = 0;
+  ctx.fillStyle = `rgba(0,255,204,${0.6})`;
+  ctx.font = `700 ${Math.round(boardR * 0.065)}px 'Orbitron', sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('ALIGN TO BOARD', cx, cy + boardR * 1.28);
+
+  ctx.restore();
+}
+
+// ─────────────────────────────────────────────
+// CSS transform builder (translate + scale only — simple and reliable)
+// ─────────────────────────────────────────────
+function calibToTransform(c) {
+  return `translate(${c.x}px, ${c.y}px) scale(${c.scale / 100})`;
+}
+
+function applyTransformToProjection(canvas, c) {
+  canvas.style.transform       = calibToTransform(c);
+  canvas.style.transformOrigin = 'center center';
+}
+
+function easeOut(t) { return 1 - (1 - t) * (1 - t); }
+
+
+// ────────────────────────────────────────
+// UTILITIES
+// ────────────────────────────────────────
+
+function openProjection() {
+  const url = location.href.split('?')[0] + '?proj';
+  const win = window.open(url, 'dart-ar-proj', 'width=1280,height=720');
+  if (!win) showToast('ALLOW POPUPS TO OPEN PROJECTION');
+  else showToast('PROJECTION WINDOW OPENED');
+}
+
+let toastTimer = null;
+function showToast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('show'), 2200);
+}
+
+
+// ────────────────────────────────────────
+// BOOT
+// ────────────────────────────────────────
+const IS_PROJECTION = new URLSearchParams(location.search).has('proj');
+if (IS_PROJECTION) initProjection();
+else {
+  initCalib();
+  initControl();
+  openSetup();
+}
+</script>
+</body>
+</html>
