@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>DART AR — Game Collection</title>
+<title>DART — Game Collection</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Space+Mono&display=swap');
 
@@ -36,8 +36,18 @@
     font-size: 0.85rem;
     color: #556;
     text-align: center;
-    margin-bottom: 3rem;
+    margin-bottom: 1.6rem;
     letter-spacing: 0.05em;
+  }
+
+  .section-label {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 0.55rem;
+    letter-spacing: 4px;
+    color: #445;
+    text-transform: uppercase;
+    margin-bottom: 0.8rem;
+    padding-left: 0.2rem;
   }
 
   .cards {
@@ -46,6 +56,7 @@
     gap: 1.2rem;
     width: 100%;
     max-width: 480px;
+    margin-bottom: 2rem;
   }
 
   .card {
@@ -82,10 +93,7 @@
     margin-bottom: 0.6rem;
   }
 
-  .card-icon {
-    font-size: 1.6rem;
-    line-height: 1;
-  }
+  .card-icon { font-size: 1.6rem; line-height: 1; }
 
   .card-title {
     font-family: 'Orbitron', sans-serif;
@@ -96,11 +104,7 @@
     letter-spacing: 0.05em;
   }
 
-  .card-desc {
-    font-size: 0.78rem;
-    color: #889;
-    line-height: 1.6;
-  }
+  .card-desc { font-size: 0.78rem; color: #889; line-height: 1.6; }
 
   .card-modes {
     display: flex;
@@ -119,12 +123,27 @@
     letter-spacing: 0.03em;
   }
 
-  .card:nth-child(1) { --accent: #00ffcc; }
-  .card:nth-child(2) { --accent: #ffaa00; }
-  .card:nth-child(3) { --accent: #ff4488; }
+  .badge.new {
+    background: rgba(0,255,136,0.08);
+    border-color: rgba(0,255,136,0.3);
+    color: #00ff88;
+  }
+
+  /* Scorer card gets a special accent */
+  .card.scorer { --accent: #00ff88; }
+
+  /* AR cards section */
+  .card.ar:nth-of-type(1) { --accent: #00ffcc; }
+  .card.ar:nth-of-type(2) { --accent: #ffaa00; }
+  .card.ar:nth-of-type(3) { --accent: #ff4488; }
+
+  /* Fallback nth-child accents for AR group */
+  .ar-cards .card:nth-child(1) { --accent: #00ffcc; }
+  .ar-cards .card:nth-child(2) { --accent: #ffaa00; }
+  .ar-cards .card:nth-child(3) { --accent: #ff4488; }
 
   footer {
-    margin-top: 3rem;
+    margin-top: 1rem;
     font-size: 0.7rem;
     color: #334;
     text-align: center;
@@ -133,12 +152,35 @@
 </head>
 <body>
 
-<h1>🎯 DART AR</h1>
-<p class="subtitle">Projector Dartboard Game Collection</p>
+<h1>🎯 DART</h1>
+<p class="subtitle">Game Collection</p>
 
+<!-- Phone scorer -->
 <div class="cards">
+  <div class="section-label">📱 Phone Scorer</div>
 
-  <a class="card" href="dart-ar.html">
+  <a class="card scorer" href="dart-scorer/dart_scorer.html">
+    <div class="card-header">
+      <span class="card-icon">📊</span>
+      <span class="card-title">DART SCORER</span>
+    </div>
+    <p class="card-desc">Full-featured X01 scorer built for iPhone. Per-dart input, live stats, checkout suggestions, match history, and post-game summary.</p>
+    <div class="card-modes">
+      <span class="badge new">New</span>
+      <span class="badge">X01</span>
+      <span class="badge">301 / 501 / 701</span>
+      <span class="badge">Legs &amp; Sets</span>
+      <span class="badge">1–4 players</span>
+      <span class="badge">Stats</span>
+    </div>
+  </a>
+</div>
+
+<!-- Projector AR games -->
+<div class="cards ar-cards">
+  <div class="section-label">🖥️ Projector AR Games</div>
+
+  <a class="card" href="dart-ar/dart-ar.html">
     <div class="card-header">
       <span class="card-icon">🎯</span>
       <span class="card-title">DART AR</span>
@@ -152,7 +194,7 @@
     </div>
   </a>
 
-  <a class="card" href="dart-ar-koth.html">
+  <a class="card" href="dart-ar/dart-ar-koth.html">
     <div class="card-header">
       <span class="card-icon">👑</span>
       <span class="card-title">KING OF THE HILL</span>
@@ -165,7 +207,7 @@
     </div>
   </a>
 
-  <a class="card" href="dart-ar-thief.html">
+  <a class="card" href="dart-ar/dart-ar-thief.html">
     <div class="card-header">
       <span class="card-icon">🦹</span>
       <span class="card-title">THIEF</span>
@@ -177,7 +219,6 @@
       <span class="badge">2–6 players</span>
     </div>
   </a>
-
 </div>
 
 <footer>Hugo Richard · github.com/HugoRICHAR/Darts</footer>
